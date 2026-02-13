@@ -139,6 +139,16 @@ target_link_directories(${PROJECT_NAME} PRIVATE
     ${SWSCALE_LIBRARY_DIRS}
 )
 
+# Find Qt permission plugins (static on Homebrew macOS)
+if(APPLE)
+    find_library(QT_DARWIN_CAMERA_PERMISSION_PLUGIN
+        NAMES qdarwincamerapermission
+        PATHS /opt/homebrew/opt/qt/share/qt/plugins/permissions
+              /opt/homebrew/Cellar/qtbase/6.10.1/share/qt/plugins/permissions
+        NO_DEFAULT_PATH
+    )
+endif()
+
 # Link libraries
 target_link_libraries(${PROJECT_NAME} PRIVATE
     Qt6::Widgets
@@ -149,6 +159,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE
     ${AVFORMAT_LINK_LIBRARIES}
     ${AVUTIL_LINK_LIBRARIES}
     ${SWSCALE_LINK_LIBRARIES}
+    $<$<PLATFORM_ID:Darwin>:${QT_DARWIN_CAMERA_PERMISSION_PLUGIN}>
+    $<$<PLATFORM_ID:Darwin>:-framework\ AVFoundation>
 )
 
 # Copy config file to build directory
@@ -166,13 +178,45 @@ if(APPLE)
     set_target_properties(${PROJECT_NAME} PROPERTIES
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_GUI_IDENTIFIER com.monitoring.multicamera
+        MACOSX_BUNDLE_BUNDLE_NAME "Multi Camera Monitor"
         MACOSX_BUNDLE_BUNDLE_VERSION ${PROJECT_VERSION}
         MACOSX_BUNDLE_SHORT_VERSION_STRING ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/Info.plist
     )
 endif()
 
 if(WIN32)
     set_target_properties(${PROJECT_NAME} PROPERTIES
         WIN32_EXECUTABLE TRUE
+    )
+endif()
+
+# Simple test executable for QCamera + QMediaCaptureSession
+add_executable(test_camera
+    test_camera.cpp
+)
+
+# Find Qt permission plugins (static on Homebrew)
+find_library(QT_DARWIN_CAMERA_PERMISSION_PLUGIN
+    NAMES qdarwincamerapermission
+    PATHS /opt/homebrew/opt/qt/share/qt/plugins/permissions
+          /opt/homebrew/Cellar/qtbase/6.10.1/share/qt/plugins/permissions
+    NO_DEFAULT_PATH
+)
+
+target_link_libraries(test_camera PRIVATE
+    Qt6::Widgets
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
+    ${QT_DARWIN_CAMERA_PERMISSION_PLUGIN}
+    "-framework AVFoundation"
+)
+
+# Make test_camera a macOS bundle with camera permission
+if(APPLE)
+    set_target_properties(test_camera PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER com.test.camera
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
     )
 endif()

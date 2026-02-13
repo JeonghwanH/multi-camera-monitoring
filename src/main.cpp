@@ -14,6 +14,12 @@
  * - Expanded view on double-click
  */
 
+// Import static Qt plugins for macOS camera permission
+#ifdef Q_OS_DARWIN
+#include <QtPlugin>
+Q_IMPORT_PLUGIN(QDarwinCameraPermissionPlugin)
+#endif
+
 #include <QApplication>
 #include <QDir>
 #include <QDebug>
