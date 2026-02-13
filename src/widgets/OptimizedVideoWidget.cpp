@@ -28,10 +28,12 @@ OptimizedVideoWidget::OptimizedVideoWidget(QWidget* parent)
     m_videoItem = new QGraphicsVideoItem();
     m_videoItem->setAspectRatioMode(m_aspectMode);
     m_scene->addItem(m_videoItem);
+    qDebug() << "OptimizedVideoWidget: Created QGraphicsVideoItem" << m_videoItem;
     
     // Connect to native size changes for proper scaling
     connect(m_videoItem, &QGraphicsVideoItem::nativeSizeChanged,
             this, &OptimizedVideoWidget::onNativeSizeChanged);
+    qDebug() << "OptimizedVideoWidget: Connected nativeSizeChanged signal";
     
     // Layout
     QVBoxLayout* layout = new QVBoxLayout(this);
@@ -53,10 +55,38 @@ QVideoSink* OptimizedVideoWidget::videoSink() const {
 }
 
 void OptimizedVideoWidget::clear() {
+    qDebug() << "OptimizedVideoWidget::clear() - resetting video item";
     // Reset the video item to clear display
     // The background brush will show through
     m_nativeSize = QSizeF();
     m_videoItem->setSize(QSizeF(0, 0));
+}
+
+void OptimizedVideoWidget::resetVideoItem() {
+    qDebug() << "OptimizedVideoWidget::resetVideoItem() - creating fresh video item";
+    qDebug() << "  Old videoItem:" << m_videoItem;
+    
+    // Disconnect old signals
+    disconnect(m_videoItem, &QGraphicsVideoItem::nativeSizeChanged,
+               this, &OptimizedVideoWidget::onNativeSizeChanged);
+    
+    // Remove and delete old item
+    m_scene->removeItem(m_videoItem);
+    delete m_videoItem;
+    
+    // Create fresh video item
+    m_videoItem = new QGraphicsVideoItem();
+    m_videoItem->setAspectRatioMode(m_aspectMode);
+    m_scene->addItem(m_videoItem);
+    
+    // Reconnect signal
+    connect(m_videoItem, &QGraphicsVideoItem::nativeSizeChanged,
+            this, &OptimizedVideoWidget::onNativeSizeChanged);
+    
+    // Reset state
+    m_nativeSize = QSizeF();
+    
+    qDebug() << "  New videoItem:" << m_videoItem;
 }
 
 bool OptimizedVideoWidget::hasVideo() const {
@@ -75,8 +105,9 @@ void OptimizedVideoWidget::resizeEvent(QResizeEvent* event) {
 }
 
 void OptimizedVideoWidget::onNativeSizeChanged(const QSizeF& size) {
+    qDebug() << "*** OptimizedVideoWidget::onNativeSizeChanged ***" << size;
+    qDebug() << "  VideoItem:" << m_videoItem << "previous nativeSize:" << m_nativeSize;
     m_nativeSize = size;
-    qDebug() << "OptimizedVideoWidget: native size changed to" << size;
     fitVideoInView();
 }
 

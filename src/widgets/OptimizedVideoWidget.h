@@ -45,6 +45,16 @@ public:
     void clear();
 
     /**
+     * @brief Reset the video item for a new source
+     * 
+     * Creates a fresh QGraphicsVideoItem to ensure clean state
+     * when switching between camera sources. This is necessary because
+     * QGraphicsVideoItem doesn't properly handle being reattached to
+     * different QMediaCaptureSession instances.
+     */
+    void resetVideoItem();
+
+    /**
      * @brief Check if widget has active video
      */
     bool hasVideo() const;

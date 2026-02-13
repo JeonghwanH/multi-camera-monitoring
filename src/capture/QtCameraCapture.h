@@ -144,6 +144,7 @@ private:
     QCamera* m_camera{nullptr};
     QMediaCaptureSession* m_session{nullptr};
     QVideoSink* m_frameSink{nullptr};  // For frame access (recording)
+    QObject* m_videoOutput{nullptr};   // Store for session recreation
 };
 
 } // namespace MCM

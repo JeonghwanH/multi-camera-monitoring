@@ -11,9 +11,8 @@ QtRtspCapture::QtRtspCapture(int slotId, QObject* parent)
     // Create media player
     m_player = new QMediaPlayer(this);
     
-    // Create a video sink for frame access (needed for recording)
-    m_frameSink = new QVideoSink(this);
-    m_player->setVideoSink(m_frameSink);
+    // Note: Don't set videoSink here - it conflicts with setVideoOutput()
+    // Video output will be set via setVideoOutput() when starting stream
     
     // Connect player signals
     connect(m_player, &QMediaPlayer::playbackStateChanged,
@@ -22,10 +21,6 @@ QtRtspCapture::QtRtspCapture(int slotId, QObject* parent)
             this, &QtRtspCapture::onMediaStatusChanged);
     connect(m_player, &QMediaPlayer::errorOccurred,
             this, &QtRtspCapture::onErrorOccurred);
-    
-    // Connect frame sink for recording access
-    connect(m_frameSink, &QVideoSink::videoFrameChanged,
-            this, &QtRtspCapture::onVideoFrameChanged);
     
     // Reconnect timer
     m_reconnectTimer = new QTimer(this);
@@ -81,15 +76,21 @@ void QtRtspCapture::start() {
 }
 
 void QtRtspCapture::stop() {
+    qDebug() << "=== QtRtspCapture::stop ===" << "slot" << m_slotId;
     m_shouldPlay = false;
     m_reconnectTimer->stop();
     
     if (m_player->playbackState() != QMediaPlayer::StoppedState) {
-        qDebug() << "QtRtspCapture: Stopping playback for slot" << m_slotId;
+        qDebug() << "  Stopping playback...";
         m_player->stop();
     }
     
+    // Clear video output to ensure clean state for source switching
+    qDebug() << "  Clearing video output...";
+    m_player->setVideoOutput(nullptr);
+    
     m_connected = false;
+    qDebug() << "  Stop complete";
 }
 
 bool QtRtspCapture::isActive() const {

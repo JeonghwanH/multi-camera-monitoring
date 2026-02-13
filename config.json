@@ -1,29 +1,53 @@
 {
-    "grid": {
-        "maxSlots": 8,
-        "rows": 2,
-        "columns": 4
-    },
     "buffer": {
+        "displayFps": 30,
         "frameCount": 30,
-        "minMaintenance": 10,
-        "displayFps": 30
+        "minMaintenance": 10
+    },
+    "grid": {
+        "columns": 4,
+        "maxSlots": 8,
+        "rows": 2
     },
     "recording": {
-        "enabled": true,
         "chunkDurationSeconds": 10,
-        "outputDirectory": "recordings",
+        "codec": "mp4v",
+        "enabled": true,
         "fps": 30,
-        "codec": "mp4v"
+        "outputDirectory": "recordings"
     },
     "slots": [
-        {"type": "auto", "source": "0"},
-        {"type": "auto", "source": "1"},
-        {"type": "auto", "source": "2"},
-        {"type": "auto", "source": "3"},
-        {"type": "auto", "source": "4"},
-        {"type": "auto", "source": "5"},
-        {"type": "auto", "source": "6"},
-        {"type": "auto", "source": "7"}
+        {
+            "source": "0",
+            "type": "auto"
+        },
+        {
+            "source": "1",
+            "type": "auto"
+        },
+        {
+            "source": "2",
+            "type": "auto"
+        },
+        {
+            "source": "",
+            "type": "none"
+        },
+        {
+            "source": "4",
+            "type": "auto"
+        },
+        {
+            "source": "5",
+            "type": "auto"
+        },
+        {
+            "source": "6",
+            "type": "auto"
+        },
+        {
+            "source": "7",
+            "type": "auto"
+        }
     ]
 }

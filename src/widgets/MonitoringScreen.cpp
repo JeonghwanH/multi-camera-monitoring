@@ -124,13 +124,6 @@ void MonitoringScreen::stopAllStreams() {
     qDebug() << "MonitoringScreen: Stopped all streams";
 }
 
-void MonitoringScreen::updateBufferSettings() {
-    for (CameraSlot* slot : m_slots) {
-        slot->updateBufferSettings();
-    }
-    qDebug() << "MonitoringScreen: Updated buffer settings on all slots";
-}
-
 void MonitoringScreen::rebuildGrid() {
     bool wasStreaming = m_streaming;
     

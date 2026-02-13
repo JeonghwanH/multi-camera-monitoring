@@ -14,13 +14,14 @@
  * - Expanded view on double-click
  */
 
+#include <QApplication>
+
 // Import static Qt plugins for macOS camera permission
+// Must be after Qt includes so Q_OS_DARWIN is defined
 #ifdef Q_OS_DARWIN
 #include <QtPlugin>
 Q_IMPORT_PLUGIN(QDarwinCameraPermissionPlugin)
 #endif
-
-#include <QApplication>
 #include <QDir>
 #include <QDebug>
 

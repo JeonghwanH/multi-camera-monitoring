@@ -28,14 +28,23 @@ QList<QCameraDevice> QtCameraCapture::availableDevices() {
 }
 
 void QtCameraCapture::setDeviceIndex(int index) {
+    qDebug() << "=== QtCameraCapture::setDeviceIndex ===" << "slot" << m_slotId << "index:" << index;
     m_deviceIndex = index;
     
     auto devices = QMediaDevices::videoInputs();
+    qDebug() << "  Available devices:" << devices.size();
+    for (int i = 0; i < devices.size(); ++i) {
+        qDebug() << "    [" << i << "]" << devices[i].description();
+    }
+    
     if (index >= 0 && index < devices.size()) {
+        qDebug() << "  Using device:" << devices[index].description();
         setupCamera(devices[index]);
     } else {
-        qWarning() << "QtCameraCapture: Invalid device index" << index 
+        qWarning() << "  ERROR: Invalid device index" << index 
                    << ", available:" << devices.size();
+        // Clear any existing camera when device is invalid
+        cleanupCamera();
         emit errorOccurred(QString("Invalid device index %1").arg(index));
     }
 }
@@ -60,13 +69,47 @@ void QtCameraCapture::setCameraDevice(const QCameraDevice& device) {
 }
 
 void QtCameraCapture::setupCamera(const QCameraDevice& device) {
-    cleanupCamera();
+    qDebug() << "=== QtCameraCapture::setupCamera START ===" << "slot" << m_slotId;
+    qDebug() << "  Device:" << device.description() << "ID:" << device.id();
     
-    qDebug() << "QtCameraCapture: Setting up camera" << device.description() 
-             << "for slot" << m_slotId;
+    // Don't store old video output - we always get a fresh one from CameraSlot
+    // after resetVideoItem() creates a new QGraphicsVideoItem
+    qDebug() << "  Clearing stored video output (will be set fresh)";
+    m_videoOutput = nullptr;
+    
+    // Full cleanup - delete camera and session
+    if (m_camera) {
+        qDebug() << "  Stopping and deleting old camera...";
+        // Disconnect signals first to avoid callbacks during destruction
+        disconnect(m_camera, nullptr, this, nullptr);
+        if (m_camera->isActive()) {
+            m_camera->stop();
+        }
+        delete m_camera;
+        m_camera = nullptr;
+    }
+    if (m_session) {
+        // IMPORTANT: Disconnect video output BEFORE deleting session
+        // This prevents QGraphicsVideoItem from getting into an inconsistent state
+        qDebug() << "  Clearing video output from old session...";
+        m_session->setVideoOutput(nullptr);
+        qDebug() << "  Deleting old session...";
+        delete m_session;
+        m_session = nullptr;
+    }
+    
+    // Reset connected state for clean start
+    m_connected = false;
+    
+    qDebug() << "  Creating NEW session and camera for slot" << m_slotId;
+    
+    // Create FRESH session (identical to constructor)
+    m_session = new QMediaCaptureSession(this);
+    qDebug() << "  NEW session created:" << m_session;
     
     // Create new camera
     m_camera = new QCamera(device, this);
+    qDebug() << "  NEW camera created:" << m_camera;
     
     // Connect camera signals
     connect(m_camera, &QCamera::activeChanged,
@@ -76,9 +119,11 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
     
     // Set camera to capture session
     m_session->setCamera(m_camera);
+    qDebug() << "  Camera set to session";
+    qDebug() << "  Video output will be set later via setVideoOutput()";
     
-    // Also set the frame sink for recording access
-    m_session->setVideoSink(m_frameSink);
+    // Note: Don't set videoSink here - it conflicts with setVideoOutput()
+    // Frame access for recording will be handled via the video item's sink
     
     // Configure camera format (prefer 720p @ 30fps for performance)
     auto formats = device.videoFormats();
@@ -114,23 +159,35 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
     
     if (!bestFormat.isNull()) {
         m_camera->setCameraFormat(bestFormat);
-        qDebug() << "QtCameraCapture: Selected format" 
-                 << bestFormat.resolution() << "@" << bestFormat.maxFrameRate() << "fps";
+        qDebug() << "  Selected format:" << bestFormat.resolution() 
+                 << "@" << bestFormat.maxFrameRate() << "fps";
+    } else {
+        qDebug() << "  WARNING: No suitable format found, using default";
     }
+    
+    qDebug() << "=== QtCameraCapture::setupCamera END ===" << "slot" << m_slotId;
 }
 
 void QtCameraCapture::cleanupCamera() {
     if (m_camera) {
         m_camera->stop();
-        m_session->setCamera(nullptr);
         delete m_camera;
         m_camera = nullptr;
     }
+    // Don't delete session here - it's managed by setupCamera or destructor
     m_connected = false;
 }
 
 void QtCameraCapture::setVideoOutput(QObject* videoOutput) {
-    m_session->setVideoOutput(videoOutput);
+    qDebug() << "QtCameraCapture::setVideoOutput" << "slot" << m_slotId 
+             << "videoOutput:" << videoOutput << "session:" << m_session;
+    m_videoOutput = videoOutput;  // Store for session recreation
+    if (m_session) {
+        m_session->setVideoOutput(videoOutput);
+        qDebug() << "  Video output SET on session";
+    } else {
+        qDebug() << "  WARNING: No session to set video output on!";
+    }
 }
 
 void QtCameraCapture::setVideoSink(QVideoSink* sink) {
@@ -142,22 +199,47 @@ void QtCameraCapture::setVideoSink(QVideoSink* sink) {
 }
 
 void QtCameraCapture::start() {
+    qDebug() << "=== QtCameraCapture::start ===" << "slot" << m_slotId;
+    qDebug() << "  Camera:" << m_camera << "Session:" << m_session << "VideoOutput:" << m_videoOutput;
+    
     if (!m_camera) {
-        qWarning() << "QtCameraCapture: No camera set, cannot start";
+        qWarning() << "  ERROR: No camera set, cannot start";
         emit errorOccurred("No camera device set");
         return;
     }
     
-    qDebug() << "QtCameraCapture: Starting camera for slot" << m_slotId;
+    if (!m_session) {
+        qWarning() << "  ERROR: No session!";
+    }
+    
+    if (!m_videoOutput) {
+        qWarning() << "  WARNING: No video output set - frames won't be displayed!";
+    }
+    
+    qDebug() << "  Calling m_camera->start()...";
     m_camera->start();
+    qDebug() << "  Camera start() called, active:" << m_camera->isActive();
 }
 
 void QtCameraCapture::stop() {
+    qDebug() << "=== QtCameraCapture::stop ===" << "slot" << m_slotId;
+    qDebug() << "  Camera:" << m_camera << "active:" << (m_camera ? m_camera->isActive() : false);
+    
     if (m_camera && m_camera->isActive()) {
-        qDebug() << "QtCameraCapture: Stopping camera for slot" << m_slotId;
+        qDebug() << "  Stopping camera...";
         m_camera->stop();
     }
+    
+    // Clear video output to ensure clean state for source switching
+    // Also clear stored pointer since the video item may be deleted
+    if (m_session) {
+        qDebug() << "  Clearing video output from session...";
+        m_session->setVideoOutput(nullptr);
+    }
+    m_videoOutput = nullptr;  // Clear stored pointer - video item will be recreated
+    
     m_connected = false;
+    qDebug() << "  Stop complete";
 }
 
 bool QtCameraCapture::isActive() const {
@@ -165,14 +247,16 @@ bool QtCameraCapture::isActive() const {
 }
 
 void QtCameraCapture::onCameraActiveChanged(bool active) {
-    qDebug() << "QtCameraCapture: Camera active changed to" << active 
-             << "for slot" << m_slotId;
+    qDebug() << "*** QtCameraCapture::onCameraActiveChanged ***" << "slot" << m_slotId
+             << "active:" << active << "was_connected:" << m_connected;
     
     if (active && !m_connected) {
         m_connected = true;
+        qDebug() << "  Emitting connectionEstablished signal";
         emit connectionEstablished();
     } else if (!active && m_connected) {
         m_connected = false;
+        qDebug() << "  Emitting connectionLost signal";
         emit connectionLost();
     }
 }
@@ -190,6 +274,15 @@ void QtCameraCapture::onCameraErrorOccurred(QCamera::Error error, const QString&
 }
 
 void QtCameraCapture::onVideoFrameChanged(const QVideoFrame& frame) {
+    // Debug: Log first few frames to confirm pipeline is working
+    static int frameCount = 0;
+    if (frameCount < 5) {
+        qDebug() << "QtCameraCapture::onVideoFrameChanged slot" << m_slotId
+                 << "frame#" << frameCount << "valid:" << frame.isValid()
+                 << "size:" << frame.size();
+        frameCount++;
+    }
+    
     // Emit frame for recording (if needed)
     if (frame.isValid()) {
         emit frameReady(frame);
