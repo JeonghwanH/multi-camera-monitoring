@@ -15,6 +15,13 @@
  */
 
 #include <QApplication>
+
+// Import static Qt plugins for macOS camera permission
+// Must be after Qt includes so Q_OS_DARWIN is defined
+#ifdef Q_OS_DARWIN
+#include <QtPlugin>
+Q_IMPORT_PLUGIN(QDarwinCameraPermissionPlugin)
+#endif
 #include <QDir>
 #include <QDebug>
 
@@ -62,7 +69,7 @@ int main(int argc, char *argv[]) {
     mainWindow.show();
     
     qDebug() << "Multi-Camera Monitor started";
-    qDebug() << "Grid:" << config.grid().maxSlots << "slots ("
+    qDebug() << "Grid:" << config.grid().maxSlots() << "slots ("
              << config.grid().rows << "x" << config.grid().columns << ")";
     qDebug() << "Buffer:" << config.buffer().frameCount << "frames, min"
              << config.buffer().minMaintenance;

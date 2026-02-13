@@ -39,11 +39,6 @@ public:
      */
     void rebuildGrid();
 
-    /**
-     * @brief Update buffer settings on all slots
-     */
-    void updateBufferSettings();
-
 signals:
     void backRequested();
 

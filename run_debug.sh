@@ -29,6 +29,6 @@ echo "========================================"
 echo "Buffer size overlay: ENABLED"
 echo ""
 
-cd build
-exec "../$EXECUTABLE" "$@"
+# Run from project root so config.json is found
+exec "$EXECUTABLE" "$@"
 

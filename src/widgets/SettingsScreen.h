@@ -7,6 +7,7 @@
 #include <QLineEdit>
 #include <QComboBox>
 #include <QPushButton>
+#include <QLabel>
 
 namespace MCM {
 
@@ -43,9 +44,10 @@ private:
     QWidget* createGridSection();
     QWidget* createBufferSection();
     QWidget* createRecordingSection();
+    void updateTotalSlotsLabel();
 
     // Grid settings
-    QSpinBox* m_maxSlotsSpinBox;
+    QLabel* m_totalSlotsLabel;  // Computed: rows × columns
     QSpinBox* m_rowsSpinBox;
     QSpinBox* m_columnsSpinBox;
 

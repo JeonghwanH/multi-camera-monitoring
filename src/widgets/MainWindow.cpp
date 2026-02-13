@@ -56,10 +56,6 @@ void MainWindow::setupUi() {
     connect(m_monitoringScreen, &MonitoringScreen::backRequested, this, &MainWindow::showHomeScreen);
     connect(m_settingsScreen, &SettingsScreen::backRequested, this, &MainWindow::showHomeScreen);
     
-    // Apply settings changes immediately
-    connect(m_settingsScreen, &SettingsScreen::settingsChanged, 
-            m_monitoringScreen, &MonitoringScreen::updateBufferSettings);
-    
     // Start with home screen
     showHomeScreen();
 }

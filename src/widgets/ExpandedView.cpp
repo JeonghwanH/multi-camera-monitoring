@@ -1,7 +1,9 @@
 #include "ExpandedView.h"
+#include "OptimizedVideoWidget.h"
 #include <QVBoxLayout>
 #include <QKeyEvent>
-#include <QResizeEvent>
+#include <QVideoSink>
+#include <QDebug>
 
 namespace MCM {
 
@@ -19,54 +21,28 @@ ExpandedView::ExpandedView(int slotIndex, QWidget* parent)
     
     // Central widget
     QWidget* centralWidget = new QWidget(this);
-    centralWidget->setStyleSheet("background-color: #000;");
+    centralWidget->setStyleSheet("background-color: #1a1a2e;");
     setCentralWidget(centralWidget);
     
     QVBoxLayout* layout = new QVBoxLayout(centralWidget);
     layout->setContentsMargins(0, 0, 0, 0);
     
-    // Video label
-    m_videoLabel = new QLabel(this);
-    m_videoLabel->setAlignment(Qt::AlignCenter);
-    m_videoLabel->setStyleSheet("background-color: #000;");
-    m_videoLabel->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
-    
-    layout->addWidget(m_videoLabel);
-    
-    // Show "No Signal" initially
-    m_videoLabel->setText("No Signal");
-    m_videoLabel->setStyleSheet("background-color: #000; color: #666; font-size: 24px;");
+    // GPU-accelerated video widget
+    m_videoWidget = new OptimizedVideoWidget(this);
+    layout->addWidget(m_videoWidget);
 }
 
-void ExpandedView::updateFrame(const QImage& frame) {
-    if (frame.isNull()) {
+void ExpandedView::updateFrame(const QVideoFrame& frame) {
+    if (!frame.isValid()) {
         return;
     }
     
-    m_currentFrame = frame;
-    fitFrameToWindow();
-}
-
-void ExpandedView::fitFrameToWindow() {
-    if (m_currentFrame.isNull()) {
-        return;
+    // Push frame directly to the video widget's sink
+    // This allows GPU-accelerated display
+    QVideoSink* sink = m_videoWidget->videoSink();
+    if (sink) {
+        sink->setVideoFrame(frame);
     }
-    
-    // Scale frame to fit window while maintaining aspect ratio
-    QSize windowSize = m_videoLabel->size();
-    QImage scaledFrame = m_currentFrame.scaled(
-        windowSize,
-        Qt::KeepAspectRatio,
-        Qt::SmoothTransformation
-    );
-    
-    m_videoLabel->setPixmap(QPixmap::fromImage(scaledFrame));
-    m_videoLabel->setStyleSheet("background-color: #000;");
-}
-
-void ExpandedView::resizeEvent(QResizeEvent* event) {
-    QMainWindow::resizeEvent(event);
-    fitFrameToWindow();
 }
 
 void ExpandedView::keyPressEvent(QKeyEvent* event) {
@@ -89,4 +65,3 @@ void ExpandedView::keyPressEvent(QKeyEvent* event) {
 }
 
 } // namespace MCM
-

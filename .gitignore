@@ -53,3 +53,4 @@ recordings/
 # Debug
 *.dSYM/
 
+src_ref/

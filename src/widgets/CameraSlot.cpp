@@ -1,10 +1,10 @@
 #include "CameraSlot.h"
-#include "VideoWidget.h"
+#include "OptimizedVideoWidget.h"
 #include "RtspInputDialog.h"
-#include "capture/DeviceCapture.h"
-#include "capture/RtspCapture.h"
-#include "core/FrameBuffer.h"
+#include "capture/QtCameraCapture.h"
+#include "capture/QtRtspCapture.h"
 #include "core/VideoRecorder.h"
+#include "core/QtVideoRecorder.h"
 #include "utils/DeviceDetector.h"
 
 #include <QVBoxLayout>
@@ -21,19 +21,20 @@ CameraSlot::CameraSlot(int slotIndex, DeviceDetector* detector, QWidget* parent)
     : QWidget(parent)
     , m_slotIndex(slotIndex)
     , m_deviceDetector(detector)
-    , m_displayTimer(new QTimer(this))
     , m_debugMode(std::getenv("MCM_DEBUG") != nullptr)
 {
     setupUi();
     setupCapture();
     
-    // Display update timer (from config)
-    connect(m_displayTimer, &QTimer::timeout, this, &CameraSlot::updateDisplay);
-    int displayFps = Config::instance().buffer().displayFps;
-    m_displayTimer->setInterval(1000 / displayFps);  // Convert FPS to interval
-    
     // Start FPS tracking timer
     m_fpsTimer.start();
+    
+    // Debug timer for FPS updates
+    if (m_debugMode) {
+        m_debugTimer = new QTimer(this);
+        connect(m_debugTimer, &QTimer::timeout, this, &CameraSlot::updateDebugLabel);
+        m_debugTimer->start(500);  // Update debug info 2x per second
+    }
     
     // Load slot configuration
     const auto& slotConfig = Config::instance().slot(m_slotIndex);
@@ -64,13 +65,13 @@ void CameraSlot::setupUi() {
     mainLayout->setContentsMargins(4, 4, 4, 4);
     mainLayout->setSpacing(4);
     
-    // Video display area (optimized VideoWidget)
-    m_videoWidget = new VideoWidget(this);
+    // GPU-accelerated video display (replaces VideoWidget)
+    m_videoWidget = new OptimizedVideoWidget(this);
     m_videoWidget->setObjectName("videoDisplay");
     m_videoWidget->setMinimumSize(200, 150);
     m_videoWidget->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     
-    // Slot number overlay (will be painted)
+    // Slot number overlay
     m_slotNumberLabel = new QLabel(QString::number(m_slotIndex), m_videoWidget);
     m_slotNumberLabel->setObjectName("slotNumber");
     m_slotNumberLabel->setAlignment(Qt::AlignCenter);
@@ -84,12 +85,12 @@ void CameraSlot::setupUi() {
         "font-size: 14px;"
     );
     
-    // Debug label (top-right, shows buffer size)
+    // Debug label (top-right, shows FPS)
     m_debugLabel = new QLabel("", m_videoWidget);
     m_debugLabel->setObjectName("debugLabel");
     m_debugLabel->setAlignment(Qt::AlignCenter);
     m_debugLabel->setStyleSheet(
-        "background-color: rgba(255, 165, 0, 0.85); "
+        "background-color: rgba(0, 200, 100, 0.85); "
         "color: black; "
         "border-radius: 4px; "
         "font-weight: bold; "
@@ -98,7 +99,7 @@ void CameraSlot::setupUi() {
     );
     m_debugLabel->setVisible(m_debugMode);
     
-    // Status label (centered overlay for Connecting, Buffering, etc.)
+    // Status label (centered overlay)
     m_statusLabel = new QLabel("No Signal", m_videoWidget);
     m_statusLabel->setObjectName("statusLabel");
     m_statusLabel->setAlignment(Qt::AlignCenter);
@@ -125,69 +126,83 @@ void CameraSlot::setupUi() {
 }
 
 void CameraSlot::setupCapture() {
-    const auto& config = Config::instance();
+    // Create Qt Multimedia capture objects
+    // QMediaCaptureSession is created inside these and replaces FrameBuffer
     
-    // Create frame buffer
-    m_buffer = new FrameBuffer(
-        config.buffer().frameCount,
-        config.buffer().minMaintenance,
-        this
-    );
+    m_cameraCapture = new QtCameraCapture(m_slotIndex, this);
+    m_rtspCapture = new QtRtspCapture(m_slotIndex, this);
     
-    connect(m_buffer, &FrameBuffer::healthChanged,
-            this, &CameraSlot::onBufferHealthChanged);
+    // NOTE: Video output is set in startStream() AFTER device is configured
+    // This follows the test_camera pattern: setCamera -> setVideoOutput -> start
     
-    // Create video recorder
+    // Connect camera capture signals
+    connect(m_cameraCapture, &QtCameraCapture::connectionEstablished,
+            this, &CameraSlot::onConnectionEstablished);
+    connect(m_cameraCapture, &QtCameraCapture::connectionLost,
+            this, &CameraSlot::onConnectionLost);
+    connect(m_cameraCapture, &QtCameraCapture::frameReady,
+            this, &CameraSlot::onFrameReady);
+    connect(m_cameraCapture, &QtCameraCapture::errorOccurred,
+            this, [this](const QString& error) {
+                qWarning() << "CameraSlot" << m_slotIndex << "camera error:" << error;
+            });
+    
+    // Connect RTSP capture signals
+    connect(m_rtspCapture, &QtRtspCapture::connectionEstablished,
+            this, &CameraSlot::onConnectionEstablished);
+    connect(m_rtspCapture, &QtRtspCapture::connectionLost,
+            this, &CameraSlot::onConnectionLost);
+    connect(m_rtspCapture, &QtRtspCapture::frameReady,
+            this, &CameraSlot::onFrameReady);
+    connect(m_rtspCapture, &QtRtspCapture::errorOccurred,
+            this, [this](const QString& error) {
+                qWarning() << "CameraSlot" << m_slotIndex << "RTSP error:" << error;
+            });
+    
+    // Create legacy video recorder (for RTSP fallback)
     m_recorder = new VideoRecorder(m_slotIndex, this);
     
-    // Create capture threads
-    m_deviceCapture = new DeviceCapture(m_slotIndex, this);
-    m_deviceCapture->setFrameBuffer(m_buffer);
-    m_deviceCapture->setVideoRecorder(m_recorder);
+    // Create hardware-accelerated video recorder (for camera capture)
+    m_qtRecorder = new QtVideoRecorder(m_slotIndex, this);
     
-    m_rtspCapture = new RtspCapture(m_slotIndex, this);
-    m_rtspCapture->setFrameBuffer(m_buffer);
-    m_rtspCapture->setVideoRecorder(m_recorder);
-    
-    // Connect signals
-    connect(m_deviceCapture, &DeviceCapture::frameReady,
-            this, &CameraSlot::onFrameReady);
-    connect(m_deviceCapture, &DeviceCapture::connectionEstablished,
-            this, &CameraSlot::onConnectionEstablished);
-    connect(m_deviceCapture, &DeviceCapture::connectionLost,
-            this, &CameraSlot::onConnectionLost);
-    
-    connect(m_rtspCapture, &RtspCapture::frameReady,
-            this, &CameraSlot::onFrameReady);
-    connect(m_rtspCapture, &RtspCapture::connectionEstablished,
-            this, &CameraSlot::onConnectionEstablished);
-    connect(m_rtspCapture, &RtspCapture::connectionLost,
-            this, &CameraSlot::onConnectionLost);
+    // Connect recorder signals
+    connect(m_qtRecorder, &QtVideoRecorder::chunkStarted,
+            this, [this](int chunk, const QString& filename) {
+                qDebug() << "CameraSlot" << m_slotIndex << "recording chunk" << chunk << "started:" << filename;
+            });
+    connect(m_qtRecorder, &QtVideoRecorder::chunkCompleted,
+            this, [this](int chunk, const QString& filename) {
+                qDebug() << "CameraSlot" << m_slotIndex << "recording chunk" << chunk << "completed:" << filename;
+            });
+    connect(m_qtRecorder, &QtVideoRecorder::errorOccurred,
+            this, [this](const QString& error) {
+                qWarning() << "CameraSlot" << m_slotIndex << "recording error:" << error;
+            });
 }
 
 void CameraSlot::cleanupCapture() {
-    if (m_deviceCapture) {
-        m_deviceCapture->stopCapture();
-        delete m_deviceCapture;
-        m_deviceCapture = nullptr;
+    if (m_cameraCapture) {
+        m_cameraCapture->stop();
+        delete m_cameraCapture;
+        m_cameraCapture = nullptr;
     }
     
     if (m_rtspCapture) {
-        m_rtspCapture->stopCapture();
+        m_rtspCapture->stop();
         delete m_rtspCapture;
         m_rtspCapture = nullptr;
-    }
-    
-    if (m_buffer) {
-        m_buffer->stop();
-        delete m_buffer;
-        m_buffer = nullptr;
     }
     
     if (m_recorder) {
         m_recorder->stopRecording();
         delete m_recorder;
         m_recorder = nullptr;
+    }
+    
+    if (m_qtRecorder) {
+        m_qtRecorder->stopRecording();
+        delete m_qtRecorder;
+        m_qtRecorder = nullptr;
     }
 }
 
@@ -205,30 +220,19 @@ void CameraSlot::updateSourceSelector() {
                          QString("Auto (Device %1)").arg(m_slotIndex)});
     m_sourceSelector->addItem(QString("Auto (Device %1)").arg(m_slotIndex));
     
-    // Wired devices
-    if (m_deviceDetector) {
-        const auto& devices = m_deviceDetector->lastKnownDevices();
-        for (const auto& device : devices) {
-            QString displayText = QString("Wired %1: %2").arg(device.index).arg(device.name);
-            m_sourceItems.append({SourceType::Wired, QString::number(device.index), displayText});
-            m_sourceSelector->addItem(displayText);
-        }
+    // Wired devices (from Qt's QMediaDevices)
+    auto devices = QtCameraCapture::availableDevices();
+    for (int i = 0; i < devices.size(); ++i) {
+        QString displayText = QString("Wired %1: %2").arg(i).arg(devices[i].description());
+        m_sourceItems.append({SourceType::Wired, QString::number(i), displayText});
+        m_sourceSelector->addItem(displayText);
     }
     
     // Add some wired options even if not detected (for manual selection)
-    for (int i = 0; i < 8; ++i) {
-        bool exists = false;
-        for (const auto& item : m_sourceItems) {
-            if (item.type == SourceType::Wired && item.source == QString::number(i)) {
-                exists = true;
-                break;
-            }
-        }
-        if (!exists) {
-            QString displayText = QString("Wired %1").arg(i);
-            m_sourceItems.append({SourceType::Wired, QString::number(i), displayText});
-            m_sourceSelector->addItem(displayText);
-        }
+    for (int i = devices.size(); i < 8; ++i) {
+        QString displayText = QString("Wired %1").arg(i);
+        m_sourceItems.append({SourceType::Wired, QString::number(i), displayText});
+        m_sourceSelector->addItem(displayText);
     }
     
     // RTSP option
@@ -257,53 +261,54 @@ void CameraSlot::refreshDeviceList() {
     }
 }
 
-void CameraSlot::updateBufferSettings() {
-    if (!m_buffer) return;
-    
-    const auto& config = Config::instance();
-    m_buffer->setMaxSize(config.buffer().frameCount);
-    m_buffer->setMinMaintenance(config.buffer().minMaintenance);
-    
-    // Update display timer interval
-    int displayFps = config.buffer().displayFps;
-    m_displayTimer->setInterval(1000 / displayFps);
-    
-    qDebug() << "CameraSlot" << m_slotIndex << "buffer updated:"
-             << "maxSize=" << config.buffer().frameCount
-             << "minMaintenance=" << config.buffer().minMaintenance
-             << "displayFps=" << displayFps;
-}
-
 void CameraSlot::onSourceSelectorChanged(int index) {
+    qDebug() << "";
+    qDebug() << "========== SOURCE CHANGE TRIGGERED ==========";
+    qDebug() << "CameraSlot" << m_slotIndex << "source selector changed to index" << index;
+    
     if (index < 0 || index >= m_sourceItems.size()) {
+        qDebug() << "  ERROR: Invalid index" << index << "(max:" << m_sourceItems.size() << ")";
         return;
     }
     
     const auto& item = m_sourceItems[index];
+    qDebug() << "  Selected: type=" << static_cast<int>(item.type) << "source=" << item.source << "display=" << item.displayText;
     
     // Handle RTSP selection (show dialog)
     if (item.type == SourceType::Rtsp && item.source.isEmpty()) {
+        qDebug() << "  RTSP selected, showing dialog...";
         showRtspInputDialog();
         return;
     }
     
     // Save to config
+    qDebug() << "  Saving to config...";
     SlotConfig slotConfig;
     slotConfig.type = item.type;
     slotConfig.source = item.source;
     Config::instance().setSlot(m_slotIndex, slotConfig);
     
     // Stop current stream if running
+    qDebug() << "  Current m_streaming:" << m_streaming;
     if (m_streaming) {
+        qDebug() << "  >>> STOPPING current stream <<<";
         stopStream();
     }
     
     // Start new stream if source is valid (not None)
     if (item.type != SourceType::None) {
+        qDebug() << "  >>> STARTING new stream <<<";
         startStream();
+    } else {
+        qDebug() << "  Source is None, resetting video item for clean state";
+        // Reset video item when setting to None to ensure clean state
+        // This prevents stale QGraphicsVideoItem references
+        m_videoWidget->resetVideoItem();
     }
     
     emit sourceChanged(m_slotIndex, item.type, item.source);
+    qDebug() << "========== SOURCE CHANGE COMPLETE ==========";
+    qDebug() << "";
 }
 
 void CameraSlot::showRtspInputDialog() {
@@ -318,7 +323,6 @@ void CameraSlot::showRtspInputDialog() {
     if (dialog.exec() == QDialog::Accepted) {
         QString url = dialog.url();
         if (!url.isEmpty()) {
-            // Block signals to prevent triggering onSourceSelectorChanged (would show dialog again)
             m_sourceSelector->blockSignals(true);
             
             // Add or update RTSP item
@@ -334,7 +338,6 @@ void CameraSlot::showRtspInputDialog() {
             }
             
             if (!found) {
-                // Insert before the "RTSP Stream..." option
                 int insertIndex = m_sourceItems.size() - 1;
                 m_sourceItems.insert(insertIndex, {SourceType::Rtsp, url, QString("RTSP: %1").arg(url)});
                 m_sourceSelector->insertItem(insertIndex, QString("RTSP: %1").arg(url));
@@ -349,11 +352,10 @@ void CameraSlot::showRtspInputDialog() {
             slotConfig.source = url;
             Config::instance().setSlot(m_slotIndex, slotConfig);
             
-            // Stop current stream if running, then start RTSP
             if (m_streaming) {
                 stopStream();
             }
-            startStream();  // Always start after RTSP URL is entered
+            startStream();
         }
     } else {
         // User cancelled, revert to previous selection
@@ -371,156 +373,184 @@ void CameraSlot::showRtspInputDialog() {
 }
 
 void CameraSlot::startStream() {
+    qDebug() << "########## CameraSlot" << m_slotIndex << "startStream() ##########";
+    qDebug() << "  m_streaming:" << m_streaming;
+    
     if (m_streaming) {
+        qDebug() << "  Already streaming, returning early";
         return;
     }
     
     const auto& slotConfig = Config::instance().slot(m_slotIndex);
+    qDebug() << "  Config - type:" << static_cast<int>(slotConfig.type) << "source:" << slotConfig.source;
     
     if (slotConfig.type == SourceType::None) {
         updateStatusLabel("No Signal", true);
+        qDebug() << "  Source is None, not starting";
         return;
     }
     
     m_streaming = true;
-    m_buffer->reset();
+    m_currentSourceType = slotConfig.type;
+    m_currentSource = slotConfig.source;
     
-    // Initialize FPS tracking
-    m_inputFrameCount = 0;
-    m_inputFps = 0.0;
-    m_fpsTimer.start();
+    // Reset FPS tracking
+    m_frameCount = 0;
+    m_currentFps = 0.0;
+    m_fpsTimer.restart();
     
-    // Note: Recording will start when connection is established (see onConnectionEstablished)
-    
-    // Start appropriate capture
-    if (slotConfig.type == SourceType::Rtsp) {
-        m_rtspCapture->setRtspUrl(slotConfig.source);
-        m_activeCapture = m_rtspCapture;
-        m_rtspCapture->start();
-    } else {
-        // Auto or Wired
-        int deviceIndex = slotConfig.source.toInt();
-        m_deviceCapture->setDeviceIndex(deviceIndex);
-        m_activeCapture = m_deviceCapture;
-        m_deviceCapture->start();
-    }
-    
-    m_displayTimer->start();
+    // Reset video item to ensure clean state for new source
+    // This creates a fresh QGraphicsVideoItem because reusing one across
+    // different QMediaCaptureSession instances doesn't work properly
+    qDebug() << "  Resetting video item for clean state...";
+    m_videoWidget->resetVideoItem();
     updateStatusLabel("Connecting...", true);
     
-    qDebug() << "CameraSlot" << m_slotIndex << "started streaming";
+    // Get the NEW video item for pipeline
+    QGraphicsVideoItem* videoItem = m_videoWidget->videoItem();
+    qDebug() << "  VideoWidget videoItem:" << videoItem;
+    qDebug() << "  VideoItem size:" << (videoItem ? videoItem->size() : QSizeF());
+    qDebug() << "  VideoItem nativeSize:" << (videoItem ? videoItem->nativeSize() : QSizeF());
+    
+    // Start appropriate capture with direct GPU pipeline
+    if (slotConfig.type == SourceType::Rtsp) {
+        // RTSP stream via QMediaPlayer
+        // IMPORTANT: For QMediaPlayer, video output should be set BEFORE source
+        qDebug() << "  >>> Starting RTSP pipeline <<<";
+        m_rtspCapture->setVideoOutput(videoItem);  // Set video output FIRST
+        m_rtspCapture->setRtspUrl(slotConfig.source);  // Then set source
+        m_rtspCapture->start();
+        qDebug() << "  RTSP stream started:" << slotConfig.source;
+    } else {
+        // Wired camera via QCamera + QMediaCaptureSession
+        int deviceIndex = slotConfig.source.toInt();
+        qDebug() << "  >>> Starting Camera pipeline <<<";
+        qDebug() << "  Device index:" << deviceIndex;
+        
+        // Check if device exists before attempting to connect
+        auto availableDevices = QtCameraCapture::availableDevices();
+        if (deviceIndex < 0 || deviceIndex >= availableDevices.size()) {
+            qDebug() << "  Device index" << deviceIndex << "not available (have" << availableDevices.size() << "devices)";
+            qDebug() << "  Showing No Signal instead of Connecting";
+            m_streaming = false;  // Not actually streaming
+            updateStatusLabel("No Signal", true);
+            return;
+        }
+        
+        m_cameraCapture->setDeviceIndex(deviceIndex);  // Configure device first
+        qDebug() << "  Device configured, now setting video output...";
+        m_cameraCapture->setVideoOutput(videoItem);  // Set AFTER device
+        qDebug() << "  Video output set, now calling start()...";
+        m_cameraCapture->start();
+        qDebug() << "  Camera start() called";
+    }
+    
+    qDebug() << "########## CameraSlot" << m_slotIndex << "startStream() DONE ##########";
 }
 
 void CameraSlot::stopStream() {
+    qDebug() << "########## CameraSlot" << m_slotIndex << "stopStream() ##########";
+    qDebug() << "  m_streaming:" << m_streaming << "m_currentSourceType:" << static_cast<int>(m_currentSourceType);
+    
     if (!m_streaming) {
+        qDebug() << "  Not streaming, returning early";
         return;
     }
     
     m_streaming = false;
-    m_displayTimer->stop();
     
-    // Stop capture
-    if (m_deviceCapture->isRunning()) {
-        m_deviceCapture->stopCapture();
+    // Stop the active capture based on current source type
+    if (m_currentSourceType == SourceType::Rtsp) {
+        qDebug() << "  Stopping RTSP capture...";
+        if (m_rtspCapture && m_rtspCapture->isActive()) {
+            m_rtspCapture->stop();
+        }
+    } else if (m_currentSourceType != SourceType::None) {
+        qDebug() << "  Stopping camera capture...";
+        qDebug() << "  m_cameraCapture:" << m_cameraCapture << "isActive:" << (m_cameraCapture ? m_cameraCapture->isActive() : false);
+        if (m_cameraCapture && m_cameraCapture->isActive()) {
+            m_cameraCapture->stop();
+        }
     }
-    if (m_rtspCapture->isRunning()) {
-        m_rtspCapture->stopCapture();
-    }
-    
-    m_activeCapture = nullptr;
     
     // Stop recording
-    m_recorder->stopRecording();
+    if (m_recorder && m_recorder->isRecording()) {
+        qDebug() << "  Stopping recorder...";
+        m_recorder->stopRecording();
+    }
     
-    // Clear buffer
-    m_buffer->clear();
-    
-    m_currentFrame = QImage();
+    // Clear display
+    qDebug() << "  Clearing video widget...";
     m_videoWidget->clear();
     updateStatusLabel("No Signal", true);
     m_connected = false;
-    m_bufferHealthy = false;
+    m_currentSourceType = SourceType::None;
+    m_currentSource.clear();
     
-    qDebug() << "CameraSlot" << m_slotIndex << "stopped streaming";
-}
-
-void CameraSlot::onFrameReady(const QImage& frame) {
-    Q_UNUSED(frame);
-    
-    // Always count frames (camera is feeding regardless of buffer state)
-    m_inputFrameCount++;
-    
-    // Update FPS calculation every second (rolling 1-second average)
-    qint64 elapsed = m_fpsTimer.elapsed();
-    if (elapsed >= 1000) {
-        m_inputFps = (m_inputFrameCount * 1000.0) / elapsed;
-        m_inputFrameCount = 0;
-        m_fpsTimer.restart();
-        
-        // Adapt display timer to match input FPS (only when we have valid FPS)
-        if (m_inputFps > 1.0 && m_bufferHealthy) {
-            int interval = static_cast<int>(1000.0 / m_inputFps);
-            m_displayTimer->setInterval(qBound(16, interval, 200));  // Clamp ~5-60fps range
-        }
-    }
+    qDebug() << "########## CameraSlot" << m_slotIndex << "stopStream() DONE ##########";
 }
 
 void CameraSlot::onConnectionEstablished() {
-    m_connected = true;
+    qDebug() << "*** CameraSlot" << m_slotIndex << "onConnectionEstablished() ***";
+    qDebug() << "  VideoItem:" << m_videoWidget->videoItem();
+    qDebug() << "  VideoItem nativeSize:" << m_videoWidget->videoItem()->nativeSize();
     
-    // Start recording now that we have a valid connection
-    const auto& recordConfig = Config::instance().recording();
-    if (recordConfig.enabled && !m_recorder->isRecording()) {
-        m_recorder->startRecording(
-            recordConfig.outputDirectory,
-            recordConfig.fps,
-            recordConfig.codec,
-            recordConfig.chunkDurationSeconds
-        );
+    m_connected = true;
+    updateStatusLabel("", false);  // Hide status on successful connection
+    
+    // Start hardware-accelerated recording if enabled (for camera sources)
+    const auto& recordingConfig = Config::instance().recording();
+    if (recordingConfig.enabled && m_currentSourceType != SourceType::Rtsp) {
+        // Use hardware-accelerated QtVideoRecorder for camera capture
+        if (m_cameraCapture && m_cameraCapture->captureSession()) {
+            qDebug() << "  Starting hardware-accelerated recording...";
+            m_qtRecorder->setSession(m_cameraCapture->captureSession());
+            m_qtRecorder->startRecording(
+                recordingConfig.outputDirectory,
+                recordingConfig.chunkDurationSeconds
+            );
+        }
     }
     
-    // Clear status - no buffering sign needed
-    updateStatusLabel("", false);
-    qDebug() << "CameraSlot" << m_slotIndex << "connected";
+    qDebug() << "  Status label hidden, connection complete";
 }
 
 void CameraSlot::onConnectionLost() {
+    qDebug() << "*** CameraSlot" << m_slotIndex << "onConnectionLost() ***";
     m_connected = false;
-    updateStatusLabel("Disconnected", true);
-    qDebug() << "CameraSlot" << m_slotIndex << "disconnected";
+    
+    // Clear the video display so last frame doesn't remain visible
+    m_videoWidget->clear();
+    updateStatusLabel("No Signal", true);
+    
+    // Stop recording (both legacy and hardware-accelerated)
+    if (m_recorder && m_recorder->isRecording()) {
+        m_recorder->stopRecording();
+    }
+    if (m_qtRecorder && m_qtRecorder->isRecording()) {
+        m_qtRecorder->stopRecording();
+    }
+    
+    qDebug() << "  Display cleared, showing No Signal";
 }
 
-void CameraSlot::onBufferHealthChanged(bool isHealthy) {
-    m_bufferHealthy = isHealthy;
+void CameraSlot::onFrameReady(const QVideoFrame& frame) {
+    // Count frames for FPS calculation
+    m_frameCount++;
     
-    // Don't reset FPS - it tracks camera input rate regardless of buffer state
-    // No buffering sign - just update internal state
-}
-
-void CameraSlot::updateDisplay() {
-    if (!m_streaming || !m_buffer) {
-        return;
+    // Calculate FPS every second
+    qint64 elapsed = m_fpsTimer.elapsed();
+    if (elapsed >= 1000) {
+        m_currentFps = (m_frameCount * 1000.0) / elapsed;
+        m_frameCount = 0;
+        m_fpsTimer.restart();
     }
     
-    // Update debug label if in debug mode
-    if (m_debugMode) {
-        updateDebugLabel();
-    }
+    // Emit frame for external use (e.g., expanded view, recording)
+    emit frameUpdated(frame);
     
-    // Only display if buffer is healthy
-    if (!m_bufferHealthy) {
-        return;
-    }
-    
-    QImage frame = m_buffer->tryPop();
-    if (!frame.isNull()) {
-        m_currentFrame = frame;
-        
-        // Display using optimized VideoWidget
-        // (handles scaling internally, only on resize)
-        m_videoWidget->displayFrame(m_currentFrame);
-        emit frameUpdated(m_currentFrame);
-    }
+    // Note: Display is handled directly by QMediaCaptureSession -> QGraphicsVideoItem
+    // No need to manually push frames to the widget (GPU pipeline)
 }
 
 void CameraSlot::paintEvent(QPaintEvent* event) {
@@ -541,6 +571,11 @@ void CameraSlot::resizeEvent(QResizeEvent* event) {
     if (m_statusLabel && m_videoWidget && m_statusLabel->isVisible()) {
         updateStatusLabel(m_statusLabel->text(), true);
     }
+    
+    // Update debug label position
+    if (m_debugMode) {
+        updateDebugLabel();
+    }
 }
 
 void CameraSlot::updateStatusLabel(const QString& text, bool show) {
@@ -549,38 +584,33 @@ void CameraSlot::updateStatusLabel(const QString& text, bool show) {
     m_statusLabel->setText(text);
     
     if (show) {
-        // Adjust size to fit text
         m_statusLabel->adjustSize();
         
         QSize videoSize = m_videoWidget->size();
         QSize statusSize = m_statusLabel->size();
         
-        // Ensure minimum dimensions
-        int width = qMax(statusSize.width() + 20, 150);  // Add padding
+        int width = qMax(statusSize.width() + 20, 150);
         int height = qMax(statusSize.height() + 10, 44);
         
-        // Center in video display
         int x = (videoSize.width() - width) / 2;
         int y = (videoSize.height() - height) / 2;
         
         m_statusLabel->setGeometry(x, y, width, height);
         m_statusLabel->show();
+        m_statusLabel->raise();  // Ensure it's on top
     } else {
         m_statusLabel->hide();
     }
 }
 
 void CameraSlot::updateDebugLabel() {
-    if (!m_debugLabel || !m_videoWidget || !m_buffer) return;
+    if (!m_debugLabel || !m_videoWidget) return;
     
-    int bufferSize = m_buffer->size();
-    int maxSize = m_buffer->maxSize();
-    
-    // Show buffer size and input FPS
-    m_debugLabel->setText(QString("Buf: %1/%2 | In: %3fps")
-        .arg(bufferSize)
-        .arg(maxSize)
-        .arg(m_inputFps, 0, 'f', 1));
+    // Show FPS (no buffer info - Qt handles buffering internally)
+    QString mode = m_connected ? "GPU" : "---";
+    m_debugLabel->setText(QString("%1 | %2 fps")
+        .arg(mode)
+        .arg(m_currentFps, 0, 'f', 1));
     m_debugLabel->adjustSize();
     
     // Position in top-right corner
@@ -590,7 +620,7 @@ void CameraSlot::updateDebugLabel() {
     
     m_debugLabel->move(x, y);
     m_debugLabel->show();
+    m_debugLabel->raise();
 }
 
 } // namespace MCM
-

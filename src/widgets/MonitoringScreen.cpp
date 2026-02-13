@@ -77,7 +77,7 @@ void MonitoringScreen::createSlots() {
     clearSlots();
     
     const auto& config = Config::instance();
-    int maxSlots = config.grid().maxSlots;
+    int maxSlots = config.grid().maxSlots();
     int rows = config.grid().rows;
     int columns = config.grid().columns;
     
@@ -122,13 +122,6 @@ void MonitoringScreen::stopAllStreams() {
         slot->stopStream();
     }
     qDebug() << "MonitoringScreen: Stopped all streams";
-}
-
-void MonitoringScreen::updateBufferSettings() {
-    for (CameraSlot* slot : m_slots) {
-        slot->updateBufferSettings();
-    }
-    qDebug() << "MonitoringScreen: Updated buffer settings on all slots";
 }
 
 void MonitoringScreen::rebuildGrid() {

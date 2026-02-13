@@ -1,14 +1,8 @@
 #include "DeviceDetector.h"
 #include <QDebug>
-#include <opencv2/opencv.hpp>
-
-#ifdef __linux__
-#include <dirent.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
-#include <linux/videodev2.h>
-#endif
+#include <QMediaDevices>
+#include <QCameraDevice>
+#include <algorithm>
 
 namespace MCM {
 
@@ -27,37 +21,16 @@ DeviceDetector::~DeviceDetector() {
 QList<DeviceInfo> DeviceDetector::detectDevices() {
     QList<DeviceInfo> devices;
     
-#ifdef __linux__
-    // Linux: Check /dev/video* devices
-    DIR* dir = opendir("/dev");
-    if (dir) {
-        struct dirent* entry;
-        while ((entry = readdir(dir)) != nullptr) {
-            QString name = QString::fromUtf8(entry->d_name);
-            if (name.startsWith("video")) {
-                bool ok;
-                int index = name.mid(5).toInt(&ok);
-                if (ok) {
-                    QString devicePath = "/dev/" + name;
-                    int fd = open(devicePath.toUtf8().constData(), O_RDONLY);
-                    if (fd >= 0) {
-                        struct v4l2_capability cap;
-                        if (ioctl(fd, VIDIOC_QUERYCAP, &cap) == 0) {
-                            // Check if it's a video capture device
-                            if (cap.device_caps & V4L2_CAP_VIDEO_CAPTURE) {
-                                DeviceInfo info;
-                                info.index = index;
-                                info.name = QString::fromUtf8(reinterpret_cast<char*>(cap.card));
-                                info.available = true;
-                                devices.append(info);
-                            }
-                        }
-                        close(fd);
-                    }
-                }
-            }
-        }
-        closedir(dir);
+    // Use Qt's QMediaDevices (GPU-friendly, no OpenCV)
+    QList<QCameraDevice> availableDevices = QMediaDevices::videoInputs();
+    
+    for (int i = 0; i < availableDevices.size(); ++i) {
+        const QCameraDevice& device = availableDevices.at(i);
+        DeviceInfo info;
+        info.index = i;  // Index in QMediaDevices list
+        info.name = device.description();
+        info.available = true;
+        devices.append(info);
     }
     
     // Sort by index
@@ -65,77 +38,14 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
         return a.index < b.index;
     });
     
-#else
-    // macOS/Windows: Use OpenCV to probe devices
-    // Scan detected range + 1 to allow detecting one new device
-    // Stop after 2 consecutive failures
-    int consecutiveFailures = 0;
-    const int maxConsecutiveFailures = 2;
-    int highestFoundIndex = -1;
-    
-    for (int i = 0; i < m_maxDevicesToCheck && consecutiveFailures < maxConsecutiveFailures; ++i) {
-        QString deviceName;
-        if (checkDevice(i, deviceName)) {
-            DeviceInfo info;
-            info.index = i;
-            info.name = deviceName.isEmpty() ? QString("Camera %1").arg(i) : deviceName;
-            info.available = true;
-            devices.append(info);
-            consecutiveFailures = 0;  // Reset on success
-            highestFoundIndex = i;
-        } else {
-            consecutiveFailures++;
-        }
-    }
-    
-    // Always try one more index beyond the highest found (to detect new devices)
-    if (highestFoundIndex >= 0 && consecutiveFailures >= maxConsecutiveFailures) {
-        int nextIndex = highestFoundIndex + 1;
-        if (nextIndex < m_maxDevicesToCheck) {
-            QString deviceName;
-            if (checkDevice(nextIndex, deviceName)) {
-                DeviceInfo info;
-                info.index = nextIndex;
-                info.name = deviceName.isEmpty() ? QString("Camera %1").arg(nextIndex) : deviceName;
-                info.available = true;
-                devices.append(info);
-            }
-        }
-    }
-#endif
-    
     return devices;
 }
 
 bool DeviceDetector::checkDevice(int index, QString& outName) {
-    // Suppress OpenCV warnings during device probing
-    cv::VideoCapture cap;
+    QList<QCameraDevice> devices = QMediaDevices::videoInputs();
     
-#ifdef __APPLE__
-    // On macOS, only try AVFoundation - don't fall back to other backends
-    // This prevents the "out of bound" warnings
-    cap.open(index, cv::CAP_AVFOUNDATION);
-    
-    if (cap.isOpened()) {
-        outName = QString("Camera %1").arg(index);
-        cap.release();
-        return true;
-    }
-    return false;
-#elif defined(_WIN32)
-    cap.open(index, cv::CAP_DSHOW);
-#else
-    cap.open(index, cv::CAP_V4L2);
-#endif
-    
-    if (!cap.isOpened()) {
-        // Try default backend (not on macOS)
-        cap.open(index);
-    }
-    
-    if (cap.isOpened()) {
-        outName = QString("Camera %1").arg(index);
-        cap.release();
+    if (index >= 0 && index < devices.size()) {
+        outName = devices.at(index).description();
         return true;
     }
     
@@ -147,7 +57,7 @@ void DeviceDetector::startMonitoring(int intervalMs) {
     m_lastKnownDevices = detectDevices();
     emit devicesChanged(m_lastKnownDevices);
     
-    // Start periodic polling
+    // Start periodic polling (as backup, QMediaDevices::videoInputsChanged is primary)
     m_pollTimer->start(intervalMs);
     
     qDebug() << "DeviceDetector: Started monitoring with" << intervalMs << "ms interval";
@@ -159,56 +69,41 @@ void DeviceDetector::stopMonitoring() {
 }
 
 void DeviceDetector::pollDevices() {
-    // Find the highest device index currently known
-    int highestKnownIndex = -1;
-    for (const auto& device : m_lastKnownDevices) {
-        if (device.index > highestKnownIndex) {
-            highestKnownIndex = device.index;
-        }
-    }
+    QList<DeviceInfo> currentDevices = detectDevices();
     
-    // Only scan the NEXT device index (e.g., if device 0,1 exist, only check device 2)
-    int nextIndexToCheck = highestKnownIndex + 1;
-    
-    if (nextIndexToCheck < m_maxDevicesToCheck) {
-        QString deviceName;
-        if (checkDevice(nextIndexToCheck, deviceName)) {
-            // New device found!
-            DeviceInfo info;
-            info.index = nextIndexToCheck;
-            info.name = deviceName.isEmpty() ? QString("Camera %1").arg(nextIndexToCheck) : deviceName;
-            info.available = true;
-            m_lastKnownDevices.append(info);
-            
-            qDebug() << "DeviceDetector: Device added -" << nextIndexToCheck << info.name;
-            emit deviceAdded(nextIndexToCheck, info.name);
-            emit devicesChanged(m_lastKnownDevices);
-        }
-    }
-    
-    // Also verify existing devices still exist (check for disconnection)
-    QList<int> removedIndices;
-    for (const auto& known : m_lastKnownDevices) {
-        QString name;
-        if (!checkDevice(known.index, name)) {
-            removedIndices.append(known.index);
-        }
-    }
-    
-    // Remove disconnected devices
-    for (int idx : removedIndices) {
-        for (int i = 0; i < m_lastKnownDevices.size(); ++i) {
-            if (m_lastKnownDevices[i].index == idx) {
-                QString removedName = m_lastKnownDevices[i].name;
-                m_lastKnownDevices.removeAt(i);
-                qDebug() << "DeviceDetector: Device removed -" << idx << removedName;
-                emit deviceRemoved(idx);
+    // Check for added devices
+    for (const auto& current : currentDevices) {
+        bool found = false;
+        for (const auto& known : m_lastKnownDevices) {
+            if (known.index == current.index && known.name == current.name) {
+                found = true;
                 break;
             }
         }
+        if (!found) {
+            qDebug() << "DeviceDetector: Device added -" << current.index << current.name;
+            emit deviceAdded(current.index, current.name);
+        }
     }
     
-    if (!removedIndices.isEmpty()) {
+    // Check for removed devices
+    for (const auto& known : m_lastKnownDevices) {
+        bool found = false;
+        for (const auto& current : currentDevices) {
+            if (known.index == current.index && known.name == current.name) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            qDebug() << "DeviceDetector: Device removed -" << known.index << known.name;
+            emit deviceRemoved(known.index);
+        }
+    }
+    
+    // Update if changed
+    if (currentDevices != m_lastKnownDevices) {
+        m_lastKnownDevices = currentDevices;
         emit devicesChanged(m_lastKnownDevices);
     }
 }

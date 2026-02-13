@@ -2,17 +2,19 @@
 #define EXPANDEDVIEW_H
 
 #include <QMainWindow>
-#include <QLabel>
-#include <QImage>
+#include <QVideoFrame>
 
 namespace MCM {
 
+class OptimizedVideoWidget;
+
 /**
- * @brief Expanded view window for a single camera
+ * @brief Expanded view window for a single camera (GPU-accelerated)
  * 
  * Shows a larger view of a camera slot with:
+ * - GPU-accelerated video display
  * - Frame fitted to window while maintaining aspect ratio
- * - ESC key to close
+ * - ESC key to close, F key for fullscreen
  * - Slot number in title
  */
 class ExpandedView : public QMainWindow {
@@ -22,28 +24,28 @@ public:
     explicit ExpandedView(int slotIndex, QWidget* parent = nullptr);
 
     /**
-     * @brief Update the displayed frame
+     * @brief Update the displayed frame (QVideoFrame version for GPU pipeline)
      */
-    void updateFrame(const QImage& frame);
+    void updateFrame(const QVideoFrame& frame);
 
     /**
      * @brief Get the slot index
      */
     int slotIndex() const { return m_slotIndex; }
+    
+    /**
+     * @brief Get the video widget for direct connection
+     */
+    OptimizedVideoWidget* videoWidget() const { return m_videoWidget; }
 
 protected:
-    void resizeEvent(QResizeEvent* event) override;
     void keyPressEvent(QKeyEvent* event) override;
 
 private:
-    void fitFrameToWindow();
-
     int m_slotIndex;
-    QLabel* m_videoLabel;
-    QImage m_currentFrame;
+    OptimizedVideoWidget* m_videoWidget;
 };
 
 } // namespace MCM
 
 #endif // EXPANDEDVIEW_H
-
