@@ -50,12 +50,16 @@ set(CAPTURE_SOURCES
     src/capture/CaptureThread.cpp
     src/capture/DeviceCapture.cpp
     src/capture/RtspCapture.cpp
+    src/capture/QtCameraCapture.cpp
+    src/capture/QtRtspCapture.cpp
 )
 
 set(CAPTURE_HEADERS
     src/capture/CaptureThread.h
     src/capture/DeviceCapture.h
     src/capture/RtspCapture.h
+    src/capture/QtCameraCapture.h
+    src/capture/QtRtspCapture.h
 )
 
 set(WIDGETS_SOURCES
@@ -67,6 +71,7 @@ set(WIDGETS_SOURCES
     src/widgets/ExpandedView.cpp
     src/widgets/RtspInputDialog.cpp
     src/widgets/VideoWidget.cpp
+    src/widgets/OptimizedVideoWidget.cpp
 )
 
 set(WIDGETS_HEADERS
@@ -78,6 +83,7 @@ set(WIDGETS_HEADERS
     src/widgets/ExpandedView.h
     src/widgets/RtspInputDialog.h
     src/widgets/VideoWidget.h
+    src/widgets/OptimizedVideoWidget.h
 )
 
 set(UTILS_SOURCES
