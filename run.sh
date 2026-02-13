@@ -54,14 +54,6 @@ if [[ -z "$EXECUTABLE" ]]; then
     exit 1
 fi
 
-# Ensure config.json exists in build directory
-if [[ ! -f "build/config.json" ]]; then
-    if [[ -f "config.json" ]]; then
-        print_status "Copying config.json to build directory..."
-        cp config.json build/
-    fi
-fi
-
 # Ensure recordings directory exists
 mkdir -p recordings
 
@@ -99,7 +91,6 @@ print_status "Starting application..."
 print_status "Executable: $EXECUTABLE"
 echo ""
 
-# Run the application
-cd build
-exec "../$EXECUTABLE" "$@"
+# Run the application from project root (so config.json is found)
+exec "$EXECUTABLE" "$@"
 

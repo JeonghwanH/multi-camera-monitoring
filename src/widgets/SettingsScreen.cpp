@@ -97,35 +97,41 @@ QWidget* SettingsScreen::createGridSection() {
     QGridLayout* layout = new QGridLayout(group);
     layout->setSpacing(15);
     
-    // Max slots
-    layout->addWidget(new QLabel("Maximum Slots:", this), 0, 0);
-    m_maxSlotsSpinBox = new QSpinBox(this);
-    m_maxSlotsSpinBox->setRange(1, 16);
-    m_maxSlotsSpinBox->setToolTip("Maximum number of camera slots (1-16)");
-    layout->addWidget(m_maxSlotsSpinBox, 0, 1);
-    
     // Rows
-    layout->addWidget(new QLabel("Grid Rows:", this), 1, 0);
+    layout->addWidget(new QLabel("Grid Rows:", this), 0, 0);
     m_rowsSpinBox = new QSpinBox(this);
     m_rowsSpinBox->setRange(1, 8);
     m_rowsSpinBox->setToolTip("Number of rows in the camera grid");
-    layout->addWidget(m_rowsSpinBox, 1, 1);
+    layout->addWidget(m_rowsSpinBox, 0, 1);
     
     // Columns
-    layout->addWidget(new QLabel("Grid Columns:", this), 2, 0);
+    layout->addWidget(new QLabel("Grid Columns:", this), 1, 0);
     m_columnsSpinBox = new QSpinBox(this);
     m_columnsSpinBox->setRange(1, 8);
     m_columnsSpinBox->setToolTip("Number of columns in the camera grid");
-    layout->addWidget(m_columnsSpinBox, 2, 1);
+    layout->addWidget(m_columnsSpinBox, 1, 1);
     
-    // Note
-    QLabel* noteLabel = new QLabel("Note: Rows × Columns should equal Max Slots", this);
-    noteLabel->setObjectName("noteLabel");
-    layout->addWidget(noteLabel, 3, 0, 1, 2);
+    // Total slots (computed, read-only)
+    layout->addWidget(new QLabel("Total Slots:", this), 2, 0);
+    m_totalSlotsLabel = new QLabel("8", this);
+    m_totalSlotsLabel->setObjectName("computedLabel");
+    m_totalSlotsLabel->setToolTip("Total slots = Rows × Columns (automatically computed)");
+    layout->addWidget(m_totalSlotsLabel, 2, 1);
+    
+    // Connect rows/columns changes to update total
+    connect(m_rowsSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &SettingsScreen::updateTotalSlotsLabel);
+    connect(m_columnsSpinBox, QOverload<int>::of(&QSpinBox::valueChanged),
+            this, &SettingsScreen::updateTotalSlotsLabel);
     
     layout->setColumnStretch(2, 1);
     
     return group;
+}
+
+void SettingsScreen::updateTotalSlotsLabel() {
+    int total = m_rowsSpinBox->value() * m_columnsSpinBox->value();
+    m_totalSlotsLabel->setText(QString::number(total));
 }
 
 QWidget* SettingsScreen::createBufferSection() {
@@ -220,9 +226,9 @@ void SettingsScreen::loadCurrentSettings() {
     const auto& config = Config::instance();
     
     // Grid
-    m_maxSlotsSpinBox->setValue(config.grid().maxSlots);
     m_rowsSpinBox->setValue(config.grid().rows);
     m_columnsSpinBox->setValue(config.grid().columns);
+    updateTotalSlotsLabel();  // Update computed total
     
     // Buffer
     m_frameCountSpinBox->setValue(config.buffer().frameCount);
@@ -244,23 +250,10 @@ void SettingsScreen::loadCurrentSettings() {
 void SettingsScreen::saveSettings() {
     auto& config = Config::instance();
     
-    // Validate grid
-    int maxSlots = m_maxSlotsSpinBox->value();
-    int rows = m_rowsSpinBox->value();
-    int columns = m_columnsSpinBox->value();
-    
-    if (rows * columns != maxSlots) {
-        QMessageBox::warning(this, "Invalid Configuration",
-            QString("Rows × Columns (%1 × %2 = %3) must equal Max Slots (%4)")
-                .arg(rows).arg(columns).arg(rows * columns).arg(maxSlots));
-        return;
-    }
-    
-    // Grid
+    // Grid - maxSlots is computed automatically as rows × columns
     GridConfig gridConfig;
-    gridConfig.maxSlots = maxSlots;
-    gridConfig.rows = rows;
-    gridConfig.columns = columns;
+    gridConfig.rows = m_rowsSpinBox->value();
+    gridConfig.columns = m_columnsSpinBox->value();
     config.setGrid(gridConfig);
     
     // Buffer

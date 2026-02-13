@@ -77,7 +77,7 @@ void MonitoringScreen::createSlots() {
     clearSlots();
     
     const auto& config = Config::instance();
-    int maxSlots = config.grid().maxSlots;
+    int maxSlots = config.grid().maxSlots();
     int rows = config.grid().rows;
     int columns = config.grid().columns;
     

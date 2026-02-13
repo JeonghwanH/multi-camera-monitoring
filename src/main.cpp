@@ -69,7 +69,7 @@ int main(int argc, char *argv[]) {
     mainWindow.show();
     
     qDebug() << "Multi-Camera Monitor started";
-    qDebug() << "Grid:" << config.grid().maxSlots << "slots ("
+    qDebug() << "Grid:" << config.grid().maxSlots() << "slots ("
              << config.grid().rows << "x" << config.grid().columns << ")";
     qDebug() << "Buffer:" << config.buffer().frameCount << "frames, min"
              << config.buffer().minMaintenance;

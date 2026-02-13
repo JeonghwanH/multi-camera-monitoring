@@ -15,6 +15,7 @@ namespace MCM {
 class QtCameraCapture;
 class QtRtspCapture;
 class VideoRecorder;
+class QtVideoRecorder;
 class DeviceDetector;
 class OptimizedVideoWidget;
 
@@ -93,8 +94,9 @@ private:
     QtCameraCapture* m_cameraCapture{nullptr};
     QtRtspCapture* m_rtspCapture{nullptr};
     
-    // Recording (will be migrated to QMediaRecorder in Step 4)
-    VideoRecorder* m_recorder{nullptr};
+    // Recording
+    VideoRecorder* m_recorder{nullptr};        // Legacy recorder (for RTSP fallback)
+    QtVideoRecorder* m_qtRecorder{nullptr};    // Hardware-accelerated recorder (for cameras)
     
     // State
     bool m_streaming{false};

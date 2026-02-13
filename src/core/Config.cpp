@@ -6,17 +6,17 @@ namespace MCM {
 // GridConfig implementation
 QJsonObject GridConfig::toJson() const {
     return QJsonObject{
-        {"maxSlots", maxSlots},
         {"rows", rows},
         {"columns", columns}
+        // maxSlots is computed as rows * columns, not stored
     };
 }
 
 GridConfig GridConfig::fromJson(const QJsonObject& obj) {
     GridConfig config;
-    config.maxSlots = obj.value("maxSlots").toInt(8);
     config.rows = obj.value("rows").toInt(2);
     config.columns = obj.value("columns").toInt(4);
+    // maxSlots is computed automatically as rows * columns
     return config;
 }
 
@@ -107,7 +107,7 @@ void Config::initializeDefaults() {
     m_recording = RecordingConfig();
     
     m_slots.clear();
-    for (int i = 0; i < m_grid.maxSlots; ++i) {
+    for (int i = 0; i < m_grid.maxSlots(); ++i) {
         SlotConfig slot;
         slot.type = SourceType::Auto;
         slot.source = QString::number(i);  // Slot index = device index
@@ -163,12 +163,17 @@ bool Config::load(const QString& path) {
         }
     }
     
-    // Ensure we have enough slots
-    while (static_cast<int>(m_slots.size()) < m_grid.maxSlots) {
+    // Ensure we have exactly the right number of slots (rows * columns)
+    // Add slots if we have too few
+    while (static_cast<int>(m_slots.size()) < m_grid.maxSlots()) {
         SlotConfig slot;
         slot.type = SourceType::Auto;
         slot.source = QString::number(m_slots.size());
         m_slots.push_back(slot);
+    }
+    // Remove slots if we have too many
+    while (static_cast<int>(m_slots.size()) > m_grid.maxSlots()) {
+        m_slots.pop_back();
     }
     
     m_configPath = path;
@@ -220,12 +225,15 @@ void Config::setGrid(const GridConfig& config) {
     QMutexLocker locker(&m_mutex);
     m_grid = config;
     
-    // Adjust slots array if needed
-    while (static_cast<int>(m_slots.size()) < m_grid.maxSlots) {
+    // Adjust slots array to match new grid size
+    while (static_cast<int>(m_slots.size()) < m_grid.maxSlots()) {
         SlotConfig slot;
         slot.type = SourceType::Auto;
         slot.source = QString::number(m_slots.size());
         m_slots.push_back(slot);
+    }
+    while (static_cast<int>(m_slots.size()) > m_grid.maxSlots()) {
+        m_slots.pop_back();
     }
 }
 

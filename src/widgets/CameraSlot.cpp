@@ -4,6 +4,7 @@
 #include "capture/QtCameraCapture.h"
 #include "capture/QtRtspCapture.h"
 #include "core/VideoRecorder.h"
+#include "core/QtVideoRecorder.h"
 #include "utils/DeviceDetector.h"
 
 #include <QVBoxLayout>
@@ -158,8 +159,25 @@ void CameraSlot::setupCapture() {
                 qWarning() << "CameraSlot" << m_slotIndex << "RTSP error:" << error;
             });
     
-    // Create video recorder (will be migrated to QMediaRecorder in Step 4)
+    // Create legacy video recorder (for RTSP fallback)
     m_recorder = new VideoRecorder(m_slotIndex, this);
+    
+    // Create hardware-accelerated video recorder (for camera capture)
+    m_qtRecorder = new QtVideoRecorder(m_slotIndex, this);
+    
+    // Connect recorder signals
+    connect(m_qtRecorder, &QtVideoRecorder::chunkStarted,
+            this, [this](int chunk, const QString& filename) {
+                qDebug() << "CameraSlot" << m_slotIndex << "recording chunk" << chunk << "started:" << filename;
+            });
+    connect(m_qtRecorder, &QtVideoRecorder::chunkCompleted,
+            this, [this](int chunk, const QString& filename) {
+                qDebug() << "CameraSlot" << m_slotIndex << "recording chunk" << chunk << "completed:" << filename;
+            });
+    connect(m_qtRecorder, &QtVideoRecorder::errorOccurred,
+            this, [this](const QString& error) {
+                qWarning() << "CameraSlot" << m_slotIndex << "recording error:" << error;
+            });
 }
 
 void CameraSlot::cleanupCapture() {
@@ -179,6 +197,12 @@ void CameraSlot::cleanupCapture() {
         m_recorder->stopRecording();
         delete m_recorder;
         m_recorder = nullptr;
+    }
+    
+    if (m_qtRecorder) {
+        m_qtRecorder->stopRecording();
+        delete m_qtRecorder;
+        m_qtRecorder = nullptr;
     }
 }
 
@@ -389,12 +413,12 @@ void CameraSlot::startStream() {
     qDebug() << "  VideoItem nativeSize:" << (videoItem ? videoItem->nativeSize() : QSizeF());
     
     // Start appropriate capture with direct GPU pipeline
-    // IMPORTANT: Set video output AFTER configuring the device (order matters for Qt)
     if (slotConfig.type == SourceType::Rtsp) {
         // RTSP stream via QMediaPlayer
+        // IMPORTANT: For QMediaPlayer, video output should be set BEFORE source
         qDebug() << "  >>> Starting RTSP pipeline <<<";
-        m_rtspCapture->setRtspUrl(slotConfig.source);
-        m_rtspCapture->setVideoOutput(videoItem);  // Set AFTER source
+        m_rtspCapture->setVideoOutput(videoItem);  // Set video output FIRST
+        m_rtspCapture->setRtspUrl(slotConfig.source);  // Then set source
         m_rtspCapture->start();
         qDebug() << "  RTSP stream started:" << slotConfig.source;
     } else {
@@ -474,9 +498,19 @@ void CameraSlot::onConnectionEstablished() {
     m_connected = true;
     updateStatusLabel("", false);  // Hide status on successful connection
     
-    // Start recording if enabled
-    // Note: Recording with QVideoFrame will be migrated to QMediaRecorder in Step 4
-    // For now, we keep VideoRecorder but it won't receive frames (recording disabled temporarily)
+    // Start hardware-accelerated recording if enabled (for camera sources)
+    const auto& recordingConfig = Config::instance().recording();
+    if (recordingConfig.enabled && m_currentSourceType != SourceType::Rtsp) {
+        // Use hardware-accelerated QtVideoRecorder for camera capture
+        if (m_cameraCapture && m_cameraCapture->captureSession()) {
+            qDebug() << "  Starting hardware-accelerated recording...";
+            m_qtRecorder->setSession(m_cameraCapture->captureSession());
+            m_qtRecorder->startRecording(
+                recordingConfig.outputDirectory,
+                recordingConfig.chunkDurationSeconds
+            );
+        }
+    }
     
     qDebug() << "  Status label hidden, connection complete";
 }
@@ -489,9 +523,12 @@ void CameraSlot::onConnectionLost() {
     m_videoWidget->clear();
     updateStatusLabel("No Signal", true);
     
-    // Stop recording
+    // Stop recording (both legacy and hardware-accelerated)
     if (m_recorder && m_recorder->isRecording()) {
         m_recorder->stopRecording();
+    }
+    if (m_qtRecorder && m_qtRecorder->isRecording()) {
+        m_qtRecorder->stopRecording();
     }
     
     qDebug() << "  Display cleared, showing No Signal";

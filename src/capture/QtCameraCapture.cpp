@@ -2,6 +2,7 @@
 #include "widgets/OptimizedVideoWidget.h"
 #include <QDebug>
 #include <QCameraFormat>
+#include <QGraphicsVideoItem>
 
 namespace MCM {
 
@@ -121,9 +122,7 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
     m_session->setCamera(m_camera);
     qDebug() << "  Camera set to session";
     qDebug() << "  Video output will be set later via setVideoOutput()";
-    
-    // Note: Don't set videoSink here - it conflicts with setVideoOutput()
-    // Frame access for recording will be handled via the video item's sink
+    qDebug() << "  Frame access will be connected to video item's sink";
     
     // Configure camera format (prefer 720p @ 30fps for performance)
     auto formats = device.videoFormats();
@@ -185,6 +184,21 @@ void QtCameraCapture::setVideoOutput(QObject* videoOutput) {
     if (m_session) {
         m_session->setVideoOutput(videoOutput);
         qDebug() << "  Video output SET on session";
+        
+        // Connect to the video item's internal sink for frame access
+        // This allows us to get frames for FPS calculation without conflicting with display
+        QGraphicsVideoItem* videoItem = qobject_cast<QGraphicsVideoItem*>(videoOutput);
+        if (videoItem) {
+            QVideoSink* itemSink = videoItem->videoSink();
+            if (itemSink) {
+                // Disconnect any previous connection to avoid duplicates
+                disconnect(itemSink, &QVideoSink::videoFrameChanged,
+                          this, &QtCameraCapture::onVideoFrameChanged);
+                connect(itemSink, &QVideoSink::videoFrameChanged,
+                       this, &QtCameraCapture::onVideoFrameChanged);
+                qDebug() << "  Connected to video item's sink for frame access";
+            }
+        }
     } else {
         qDebug() << "  WARNING: No session to set video output on!";
     }

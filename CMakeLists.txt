@@ -38,12 +38,14 @@ set(CORE_SOURCES
     src/core/Config.cpp
     src/core/FrameBuffer.cpp
     src/core/VideoRecorder.cpp
+    src/core/QtVideoRecorder.cpp
 )
 
 set(CORE_HEADERS
     src/core/Config.h
     src/core/FrameBuffer.h
     src/core/VideoRecorder.h
+    src/core/QtVideoRecorder.h
 )
 
 set(CAPTURE_SOURCES

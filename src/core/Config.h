@@ -18,9 +18,11 @@ namespace MCM {
  * @brief Grid configuration for camera slots layout
  */
 struct GridConfig {
-    int maxSlots = 8;
     int rows = 2;
     int columns = 4;
+    
+    // Computed property - total slots = rows * columns
+    int maxSlots() const { return rows * columns; }
     
     QJsonObject toJson() const;
     static GridConfig fromJson(const QJsonObject& obj);
