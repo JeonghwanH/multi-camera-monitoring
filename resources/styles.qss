@@ -1,0 +1,417 @@
+/* Multi-Camera Monitor - Qt Stylesheet */
+/* Modern dark theme with accent colors */
+
+/* ==================== Global ==================== */
+* {
+    font-family: "Segoe UI", "SF Pro Display", -apple-system, sans-serif;
+}
+
+QMainWindow, QWidget {
+    background-color: #0f0f1a;
+    color: #e0e0e0;
+}
+
+QLabel {
+    color: #e0e0e0;
+}
+
+/* ==================== Home Screen ==================== */
+#homeTitle {
+    color: #ffffff;
+    font-size: 42px;
+    font-weight: bold;
+    padding: 20px;
+}
+
+#streamingButton {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #4f46e5, stop:1 #7c3aed);
+    color: white;
+    border: none;
+    border-radius: 16px;
+    padding: 20px;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+#streamingButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #6366f1, stop:1 #8b5cf6);
+}
+
+#streamingButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #4338ca, stop:1 #6d28d9);
+}
+
+#settingsButton {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #1e293b, stop:1 #334155);
+    color: white;
+    border: 2px solid #475569;
+    border-radius: 16px;
+    padding: 20px;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+#settingsButton:hover {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #334155, stop:1 #475569);
+    border-color: #64748b;
+}
+
+#settingsButton:pressed {
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1,
+        stop:0 #1e293b, stop:1 #334155);
+}
+
+#versionLabel {
+    color: #64748b;
+    font-size: 12px;
+}
+
+/* ==================== Navigation ==================== */
+#backButton {
+    background-color: #1e293b;
+    color: #e0e0e0;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 8px 16px;
+    font-size: 14px;
+}
+
+#backButton:hover {
+    background-color: #334155;
+    border-color: #475569;
+}
+
+#screenTitle {
+    color: #ffffff;
+}
+
+/* ==================== Grid Container ==================== */
+#gridContainer {
+    background-color: #1a1a2e;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+/* ==================== Camera Slot ==================== */
+#cameraSlot {
+    background-color: #16213e;
+    border: 2px solid #1e3a5f;
+    border-radius: 8px;
+}
+
+#cameraSlot:hover {
+    border-color: #4f46e5;
+}
+
+#videoDisplay {
+    background-color: #1a1a2e;
+    border-radius: 4px;
+}
+
+#slotNumber {
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    border-radius: 4px;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 2px 8px;
+}
+
+#statusLabel {
+    color: #888888;
+    font-size: 16px;
+    background: transparent;
+}
+
+#sourceSelector {
+    background-color: #1e293b;
+    color: #e0e0e0;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    padding: 6px 10px;
+    min-height: 28px;
+}
+
+#sourceSelector:hover {
+    border-color: #475569;
+}
+
+#sourceSelector::drop-down {
+    border: none;
+    width: 24px;
+}
+
+#sourceSelector::down-arrow {
+    image: none;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #64748b;
+    margin-right: 8px;
+}
+
+#sourceSelector QAbstractItemView {
+    background-color: #1e293b;
+    color: #e0e0e0;
+    border: 1px solid #334155;
+    selection-background-color: #4f46e5;
+    selection-color: white;
+}
+
+/* ==================== Settings Screen ==================== */
+#settingsGroup {
+    background-color: #1a1a2e;
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 20px;
+    margin-top: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    color: #ffffff;
+}
+
+#settingsGroup::title {
+    subcontrol-origin: margin;
+    subcontrol-position: top left;
+    padding: 0 10px;
+    color: #ffffff;
+}
+
+QSpinBox, QLineEdit {
+    background-color: #1e293b;
+    color: #e0e0e0;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    padding: 8px 12px;
+    min-height: 20px;
+    min-width: 120px;
+}
+
+QSpinBox:focus, QLineEdit:focus {
+    border-color: #4f46e5;
+}
+
+QSpinBox::up-button, QSpinBox::down-button {
+    background-color: #334155;
+    border: none;
+    width: 20px;
+}
+
+QSpinBox::up-button:hover, QSpinBox::down-button:hover {
+    background-color: #475569;
+}
+
+QComboBox {
+    background-color: #1e293b;
+    color: #e0e0e0;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    padding: 8px 12px;
+    min-height: 20px;
+    min-width: 120px;
+}
+
+QComboBox:hover {
+    border-color: #475569;
+}
+
+QComboBox::drop-down {
+    border: none;
+    width: 24px;
+}
+
+QComboBox::down-arrow {
+    image: none;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #64748b;
+    margin-right: 8px;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #1e293b;
+    color: #e0e0e0;
+    border: 1px solid #334155;
+    selection-background-color: #4f46e5;
+    selection-color: white;
+}
+
+QCheckBox {
+    color: #e0e0e0;
+    spacing: 8px;
+}
+
+QCheckBox::indicator {
+    width: 20px;
+    height: 20px;
+    border-radius: 4px;
+    border: 2px solid #334155;
+    background-color: #1e293b;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #4f46e5;
+    border-color: #4f46e5;
+}
+
+QCheckBox::indicator:hover {
+    border-color: #475569;
+}
+
+#noteLabel {
+    color: #64748b;
+    font-size: 12px;
+    font-style: italic;
+    font-weight: normal;
+}
+
+#saveButton {
+    background-color: #4f46e5;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: bold;
+    min-width: 120px;
+}
+
+#saveButton:hover {
+    background-color: #6366f1;
+}
+
+#saveButton:pressed {
+    background-color: #4338ca;
+}
+
+#resetButton {
+    background-color: transparent;
+    color: #64748b;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 10px 24px;
+    font-size: 14px;
+    min-width: 120px;
+}
+
+#resetButton:hover {
+    color: #e0e0e0;
+    border-color: #475569;
+}
+
+/* ==================== RTSP Dialog ==================== */
+QDialog {
+    background-color: #0f0f1a;
+}
+
+#primaryButton {
+    background-color: #4f46e5;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: bold;
+    min-width: 100px;
+}
+
+#primaryButton:hover {
+    background-color: #6366f1;
+}
+
+#primaryButton:pressed {
+    background-color: #4338ca;
+}
+
+#primaryButton:disabled {
+    background-color: #334155;
+    color: #64748b;
+}
+
+QPushButton {
+    background-color: #1e293b;
+    color: #e0e0e0;
+    border: 1px solid #334155;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 14px;
+    min-width: 80px;
+}
+
+QPushButton:hover {
+    background-color: #334155;
+    border-color: #475569;
+}
+
+QPushButton:pressed {
+    background-color: #1e293b;
+}
+
+/* ==================== Scroll Area ==================== */
+QScrollArea {
+    background-color: transparent;
+    border: none;
+}
+
+QScrollBar:vertical {
+    background-color: #1a1a2e;
+    width: 12px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #334155;
+    border-radius: 6px;
+    min-height: 30px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #475569;
+}
+
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+
+QScrollBar:horizontal {
+    background-color: #1a1a2e;
+    height: 12px;
+    border-radius: 6px;
+}
+
+QScrollBar::handle:horizontal {
+    background-color: #334155;
+    border-radius: 6px;
+    min-width: 30px;
+}
+
+QScrollBar::handle:horizontal:hover {
+    background-color: #475569;
+}
+
+QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
+    width: 0px;
+}
+
+/* ==================== Message Box ==================== */
+QMessageBox {
+    background-color: #0f0f1a;
+}
+
+QMessageBox QLabel {
+    color: #e0e0e0;
+}
+
+/* ==================== Tooltips ==================== */
+QToolTip {
+    background-color: #1e293b;
+    color: #e0e0e0;
+    border: 1px solid #334155;
+    border-radius: 4px;
+    padding: 6px 10px;
+}
+
