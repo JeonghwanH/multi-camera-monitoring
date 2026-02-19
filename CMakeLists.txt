@@ -198,24 +198,19 @@ add_executable(test_camera
     test_camera.cpp
 )
 
-# Find Qt permission plugins (static on Homebrew)
-find_library(QT_DARWIN_CAMERA_PERMISSION_PLUGIN
-    NAMES qdarwincamerapermission
-    PATHS /opt/homebrew/opt/qt/share/qt/plugins/permissions
-          /opt/homebrew/Cellar/qtbase/6.10.1/share/qt/plugins/permissions
-    NO_DEFAULT_PATH
-)
-
 target_link_libraries(test_camera PRIVATE
     Qt6::Widgets
     Qt6::Multimedia
     Qt6::MultimediaWidgets
-    ${QT_DARWIN_CAMERA_PERMISSION_PLUGIN}
-    "-framework AVFoundation"
 )
 
-# Make test_camera a macOS bundle with camera permission
+# macOS-specific: permission plugin and bundle settings
 if(APPLE)
+    target_link_libraries(test_camera PRIVATE
+        ${QT_DARWIN_CAMERA_PERMISSION_PLUGIN}
+        "-framework AVFoundation"
+    )
+    
     set_target_properties(test_camera PROPERTIES
         MACOSX_BUNDLE TRUE
         MACOSX_BUNDLE_GUI_IDENTIFIER com.test.camera
