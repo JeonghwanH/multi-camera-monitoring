@@ -2,8 +2,10 @@
 // Build: cd build && cmake .. && make test_camera
 // Run: ./test_camera
 
+#ifdef Q_OS_MACOS
 #include <QtPlugin>
 Q_IMPORT_PLUGIN(QDarwinCameraPermissionPlugin)
+#endif
 
 #include <QApplication>
 #include <QMainWindow>
