@@ -144,22 +144,26 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
             }
         }
         
-        // Include a bus info hint in the display name to differentiate same-model devices
-        if (v4l2Devices.size() > 1) {
-            // Check if there are other devices with the same card name
-            int sameNameCount = 0;
-            int sameNameIndex = 0;
-            for (int j = 0; j < v4l2Devices.size(); ++j) {
-                if (v4l2Devices[j].card == v4l2Dev.card) {
-                    if (j < i) sameNameIndex++;
-                    sameNameCount++;
-                }
-            }
-            if (sameNameCount > 1) {
-                // Add index to differentiate: "AV.io SDI+ #1", "AV.io SDI+ #2"
-                info.name = QString("%1 #%2").arg(v4l2Dev.card).arg(sameNameIndex + 1);
+        // Build display name with device path
+        // Format: "CardName (path)" or "CardName #N (path)" for duplicates
+        QString displayName = v4l2Dev.card;
+        
+        // Check if there are other devices with the same card name
+        int sameNameCount = 0;
+        int sameNameIndex = 0;
+        for (int j = 0; j < v4l2Devices.size(); ++j) {
+            if (v4l2Devices[j].card == v4l2Dev.card) {
+                if (j < i) sameNameIndex++;
+                sameNameCount++;
             }
         }
+        if (sameNameCount > 1) {
+            // Add index to differentiate: "AV.io SDI+ #1"
+            displayName = QString("%1 #%2").arg(v4l2Dev.card).arg(sameNameIndex + 1);
+        }
+        
+        // Always append the device path: "AV.io SDI+ #1 (/dev/video0)"
+        info.name = QString("%1 (%2)").arg(displayName).arg(v4l2Dev.path);
         
         devices.append(info);
         qDebug() << "  [" << info.index << "]" << info.name 
@@ -217,8 +221,15 @@ QCameraDevice DeviceDetector::cameraDeviceByIndex(int index) const {
             
             // Fallback: match by card name and take the Nth one that matches
             // This works because Qt lists devices in the same order as V4L2
+            // Name format is "CardName #N (/dev/videoX)" or "CardName (/dev/videoX)"
             QString targetCard = info.name;
-            // Remove our added "#N" suffix if present
+            
+            // Remove path suffix "(/dev/videoX)" first
+            int parenIndex = targetCard.lastIndexOf(" (");
+            if (parenIndex > 0) {
+                targetCard = targetCard.left(parenIndex);
+            }
+            // Then remove "#N" suffix if present
             int hashIndex = targetCard.lastIndexOf(" #");
             if (hashIndex > 0) {
                 targetCard = targetCard.left(hashIndex);
@@ -229,6 +240,12 @@ QCameraDevice DeviceDetector::cameraDeviceByIndex(int index) const {
             for (const auto& other : m_lastKnownDevices) {
                 if (other.index < index) {
                     QString otherCard = other.name;
+                    // Remove path suffix
+                    int otherParen = otherCard.lastIndexOf(" (");
+                    if (otherParen > 0) {
+                        otherCard = otherCard.left(otherParen);
+                    }
+                    // Remove "#N" suffix
                     int otherHash = otherCard.lastIndexOf(" #");
                     if (otherHash > 0) {
                         otherCard = otherCard.left(otherHash);
