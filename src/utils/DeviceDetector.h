@@ -16,9 +16,15 @@ struct DeviceInfo {
     int index;           // Sequential index (0, 1, 2, ...) - our filtered numbering
     QString name;        // Human-readable device name
     QString deviceId;    // Qt device ID (used to retrieve actual QCameraDevice)
+    QString devicePath;  // Linux: actual /dev/video* path; other platforms: empty
+    QString busInfo;     // Linux: USB bus info for unique identification; other platforms: empty
     bool available;      // Whether device is currently available
     
     bool operator==(const DeviceInfo& other) const {
+        // On Linux, compare by bus_info (unique physical device)
+        if (!busInfo.isEmpty() && !other.busInfo.isEmpty()) {
+            return busInfo == other.busInfo;
+        }
         return index == other.index && deviceId == other.deviceId;
     }
 };
@@ -115,13 +121,6 @@ private:
      * @brief Check if a specific device index can be opened
      */
     bool checkDevice(int index, QString& outName);
-
-    /**
-     * @brief Check if a V4L2 device supports video capture (Linux only)
-     * @param devicePath Path like "/dev/video0"
-     * @return true if device supports VIDEO_CAPTURE
-     */
-    bool isVideoCaptureDevice(const QString& devicePath);
 
     QTimer* m_pollTimer;
     QList<DeviceInfo> m_lastKnownDevices;

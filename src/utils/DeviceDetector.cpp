@@ -1,6 +1,8 @@
 #include "DeviceDetector.h"
 #include <QDebug>
 #include <QMediaDevices>
+#include <QDir>
+#include <QFile>
 #include <algorithm>
 #include <cstring>
 
@@ -11,6 +13,85 @@
 #include <sys/ioctl.h>
 #include <linux/videodev2.h>
 #endif
+
+namespace {
+#ifdef Q_OS_LINUX
+struct V4L2DeviceInfo {
+    QString path;       // e.g., "/dev/video0"
+    QString card;       // e.g., "AV.io SDI+"
+    QString busInfo;    // e.g., "usb-0000:80:14.0-2"
+    bool isCapture;
+};
+
+// Get V4L2 device info
+V4L2DeviceInfo getV4L2DeviceInfo(const QString& devicePath) {
+    V4L2DeviceInfo info;
+    info.path = devicePath;
+    info.isCapture = false;
+    
+    int fd = open(devicePath.toUtf8().constData(), O_RDWR | O_NONBLOCK);
+    if (fd < 0) {
+        return info;
+    }
+    
+    struct v4l2_capability cap;
+    memset(&cap, 0, sizeof(cap));
+    
+    if (ioctl(fd, VIDIOC_QUERYCAP, &cap) == 0) {
+        info.card = QString::fromUtf8((const char*)cap.card);
+        info.busInfo = QString::fromUtf8((const char*)cap.bus_info);
+        
+        __u32 caps = (cap.capabilities & V4L2_CAP_DEVICE_CAPS) ? cap.device_caps : cap.capabilities;
+        info.isCapture = (caps & V4L2_CAP_VIDEO_CAPTURE) || (caps & V4L2_CAP_VIDEO_CAPTURE_MPLANE);
+        
+        // Exclude metadata-only devices
+        bool isMetaOnly = (caps & V4L2_CAP_META_CAPTURE) && !info.isCapture;
+        if (isMetaOnly) {
+            info.isCapture = false;
+        }
+    }
+    
+    close(fd);
+    return info;
+}
+
+// Enumerate all /dev/video* devices and filter to capture-only
+QList<V4L2DeviceInfo> enumerateV4L2CaptureDevices() {
+    QList<V4L2DeviceInfo> devices;
+    QSet<QString> seenBusInfo;  // Track unique physical devices by bus_info
+    
+    // Check /dev/video0 through /dev/video31
+    for (int i = 0; i < 32; ++i) {
+        QString path = QString("/dev/video%1").arg(i);
+        if (!QFile::exists(path)) {
+            continue;
+        }
+        
+        V4L2DeviceInfo info = getV4L2DeviceInfo(path);
+        
+        qDebug() << "V4L2 Device:" << path 
+                 << "card:" << info.card 
+                 << "bus:" << info.busInfo 
+                 << "capture:" << info.isCapture;
+        
+        if (info.isCapture) {
+            // Only add the FIRST capture node for each physical device (by bus_info)
+            if (!seenBusInfo.contains(info.busInfo)) {
+                seenBusInfo.insert(info.busInfo);
+                devices.append(info);
+                qDebug() << "  -> INCLUDED as unique device";
+            } else {
+                qDebug() << "  -> SKIPPED (duplicate bus_info)";
+            }
+        } else {
+            qDebug() << "  -> SKIPPED (not capture)";
+        }
+    }
+    
+    return devices;
+}
+#endif
+} // anonymous namespace
 
 namespace MCM {
 
@@ -26,110 +107,86 @@ DeviceDetector::~DeviceDetector() {
     stopMonitoring();
 }
 
-bool DeviceDetector::isVideoCaptureDevice(const QString& devicePath) {
-#ifdef Q_OS_LINUX
-    // On Linux, check V4L2 capabilities to filter out metadata nodes
-    // The devicePath should be like "/dev/video0"
-    
-    // If path doesn't look like a device path, assume it's valid (Qt internal ID)
-    if (!devicePath.startsWith("/dev/")) {
-        qDebug() << "DeviceDetector: Non-path device ID" << devicePath << "- assuming valid";
-        return true;
-    }
-    
-    int fd = open(devicePath.toUtf8().constData(), O_RDWR | O_NONBLOCK);
-    if (fd < 0) {
-        qDebug() << "DeviceDetector: Cannot open" << devicePath << "for capability check, errno:" << errno;
-        // If we can't open it, still include it (might be permission issue)
-        return true;
-    }
-    
-    struct v4l2_capability cap;
-    memset(&cap, 0, sizeof(cap));
-    bool isCapture = false;
-    
-    if (ioctl(fd, VIDIOC_QUERYCAP, &cap) == 0) {
-        // Check device_caps first (specific to this node)
-        // If V4L2_CAP_DEVICE_CAPS is set, use device_caps; otherwise use capabilities
-        __u32 caps = (cap.capabilities & V4L2_CAP_DEVICE_CAPS) ? cap.device_caps : cap.capabilities;
-        
-        // Check for video capture capability (single-planar or multi-planar)
-        isCapture = (caps & V4L2_CAP_VIDEO_CAPTURE) ||
-                   (caps & V4L2_CAP_VIDEO_CAPTURE_MPLANE);
-        
-        // Also check if it's a metadata device (V4L2_CAP_META_CAPTURE)
-        bool isMetadata = (caps & V4L2_CAP_META_CAPTURE);
-        
-        qDebug() << "DeviceDetector: Device" << devicePath
-                 << "card:" << (const char*)cap.card
-                 << "capabilities:" << Qt::hex << cap.capabilities
-                 << "device_caps:" << Qt::hex << cap.device_caps
-                 << "effective_caps:" << Qt::hex << caps
-                 << "VIDEO_CAPTURE:" << isCapture
-                 << "META_CAPTURE:" << isMetadata;
-        
-        // If it's a metadata-only device, skip it
-        if (isMetadata && !isCapture) {
-            close(fd);
-            return false;
-        }
-    } else {
-        qWarning() << "DeviceDetector: VIDIOC_QUERYCAP failed for" << devicePath << "errno:" << errno;
-        // If ioctl fails, still include the device
-        isCapture = true;
-    }
-    
-    close(fd);
-    return isCapture;
-#else
-    // On non-Linux platforms, assume all devices are capture devices
-    Q_UNUSED(devicePath);
-    return true;
-#endif
-}
-
 QList<DeviceInfo> DeviceDetector::detectDevices() {
     QList<DeviceInfo> devices;
     
-    // Use Qt's QMediaDevices (GPU-friendly, no OpenCV)
+#ifdef Q_OS_LINUX
+    // On Linux, enumerate /dev/video* directly using V4L2 to:
+    // 1. Filter out metadata nodes
+    // 2. Get unique physical devices by bus_info
+    // 3. Match to Qt devices for actual camera usage
+    
+    QList<V4L2DeviceInfo> v4l2Devices = enumerateV4L2CaptureDevices();
+    QList<QCameraDevice> qtDevices = QMediaDevices::videoInputs();
+    
+    qDebug() << "DeviceDetector: Found" << v4l2Devices.size() << "unique V4L2 capture devices";
+    qDebug() << "DeviceDetector: Qt reports" << qtDevices.size() << "devices";
+    
+    for (int i = 0; i < v4l2Devices.size(); ++i) {
+        const V4L2DeviceInfo& v4l2Dev = v4l2Devices[i];
+        
+        DeviceInfo info;
+        info.index = i;
+        info.name = v4l2Dev.card;
+        info.devicePath = v4l2Dev.path;
+        info.busInfo = v4l2Dev.busInfo;
+        info.available = true;
+        
+        // Find matching Qt device by looking for one with matching name
+        // that hasn't been used yet
+        for (const QCameraDevice& qtDev : qtDevices) {
+            QString qtName = qtDev.description();
+            // Qt names have "(V4L2)" suffix, V4L2 card names don't
+            if (qtName.contains(v4l2Dev.card)) {
+                info.deviceId = QString::fromUtf8(qtDev.id());
+                qDebug() << "  Matched V4L2" << v4l2Dev.path << "to Qt device id:" << info.deviceId;
+                break;
+            }
+        }
+        
+        // Include a bus info hint in the display name to differentiate same-model devices
+        if (v4l2Devices.size() > 1) {
+            // Check if there are other devices with the same card name
+            int sameNameCount = 0;
+            int sameNameIndex = 0;
+            for (int j = 0; j < v4l2Devices.size(); ++j) {
+                if (v4l2Devices[j].card == v4l2Dev.card) {
+                    if (j < i) sameNameIndex++;
+                    sameNameCount++;
+                }
+            }
+            if (sameNameCount > 1) {
+                // Add index to differentiate: "AV.io SDI+ #1", "AV.io SDI+ #2"
+                info.name = QString("%1 #%2").arg(v4l2Dev.card).arg(sameNameIndex + 1);
+            }
+        }
+        
+        devices.append(info);
+        qDebug() << "  [" << info.index << "]" << info.name 
+                 << "path:" << info.devicePath << "bus:" << info.busInfo;
+    }
+    
+#else
+    // On non-Linux platforms, use Qt's enumeration directly
     QList<QCameraDevice> availableDevices = QMediaDevices::videoInputs();
     
-    qDebug() << "DeviceDetector: Qt found" << availableDevices.size() << "raw devices";
-    
-    int filteredIndex = 0;  // Our sequential index
+    qDebug() << "DeviceDetector: Qt found" << availableDevices.size() << "devices";
     
     for (int i = 0; i < availableDevices.size(); ++i) {
         const QCameraDevice& device = availableDevices.at(i);
-        QString deviceId = QString::fromUtf8(device.id());
-        QString deviceName = device.description();
-        
-        qDebug() << "  Raw device[" << i << "]:" << deviceName << "id:" << deviceId;
-        
-#ifdef Q_OS_LINUX
-        // On Linux, the device ID is typically the device path like "/dev/video0"
-        // Filter to only include actual video capture devices
-        if (!isVideoCaptureDevice(deviceId)) {
-            qDebug() << "    -> SKIPPED (not a capture device)";
-            continue;
-        }
-        qDebug() << "    -> INCLUDED as filtered index" << filteredIndex;
-#endif
         
         DeviceInfo info;
-        info.index = filteredIndex;  // Sequential index after filtering
-        info.name = deviceName;
-        info.deviceId = deviceId;
+        info.index = i;
+        info.name = device.description();
+        info.deviceId = QString::fromUtf8(device.id());
         info.available = true;
         devices.append(info);
         
-        filteredIndex++;
+        qDebug() << "  [" << info.index << "]" << info.name << "(id:" << info.deviceId << ")";
     }
+#endif
     
-    qDebug() << "DeviceDetector: Filtered to" << devices.size() << "capture devices";
-    for (const auto& dev : devices) {
-        qDebug() << "  [" << dev.index << "]" << dev.name << "(id:" << dev.deviceId << ")";
-    }
-    
+    qDebug() << "DeviceDetector: Total" << devices.size() << "capture devices";
     return devices;
 }
 
@@ -137,13 +194,72 @@ QCameraDevice DeviceDetector::cameraDeviceByIndex(int index) const {
     // Find the device info with this index
     for (const auto& info : m_lastKnownDevices) {
         if (info.index == index) {
-            // Find the actual QCameraDevice with matching ID
             QList<QCameraDevice> allDevices = QMediaDevices::videoInputs();
+            
+#ifdef Q_OS_LINUX
+            // On Linux, we need to find the Qt device that matches our V4L2 device
+            // Strategy: Find Qt device with matching name AND that points to the same
+            // physical device (by trying to match path from V4L2 bus info)
+            
+            qDebug() << "DeviceDetector::cameraDeviceByIndex(" << index << ")"
+                     << "Looking for:" << info.name << "path:" << info.devicePath 
+                     << "bus:" << info.busInfo;
+            
+            // First try: exact deviceId match (if we stored it)
+            if (!info.deviceId.isEmpty()) {
+                for (const auto& device : allDevices) {
+                    if (QString::fromUtf8(device.id()) == info.deviceId) {
+                        qDebug() << "  Found by deviceId:" << info.deviceId;
+                        return device;
+                    }
+                }
+            }
+            
+            // Fallback: match by card name and take the Nth one that matches
+            // This works because Qt lists devices in the same order as V4L2
+            QString targetCard = info.name;
+            // Remove our added "#N" suffix if present
+            int hashIndex = targetCard.lastIndexOf(" #");
+            if (hashIndex > 0) {
+                targetCard = targetCard.left(hashIndex);
+            }
+            
+            int targetInstance = 0;
+            // Count how many devices with same card name come before this one
+            for (const auto& other : m_lastKnownDevices) {
+                if (other.index < index) {
+                    QString otherCard = other.name;
+                    int otherHash = otherCard.lastIndexOf(" #");
+                    if (otherHash > 0) {
+                        otherCard = otherCard.left(otherHash);
+                    }
+                    if (otherCard == targetCard) {
+                        targetInstance++;
+                    }
+                }
+            }
+            
+            qDebug() << "  Looking for card:" << targetCard << "instance:" << targetInstance;
+            
+            int foundInstance = 0;
+            for (const auto& device : allDevices) {
+                QString qtName = device.description();
+                if (qtName.contains(targetCard)) {
+                    if (foundInstance == targetInstance) {
+                        qDebug() << "  Found Qt device:" << qtName << "id:" << QString::fromUtf8(device.id());
+                        return device;
+                    }
+                    foundInstance++;
+                }
+            }
+#else
+            // On non-Linux, simple ID match
             for (const auto& device : allDevices) {
                 if (QString::fromUtf8(device.id()) == info.deviceId) {
                     return device;
                 }
             }
+#endif
         }
     }
     
