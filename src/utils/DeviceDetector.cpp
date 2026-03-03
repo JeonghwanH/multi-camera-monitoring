@@ -132,36 +132,36 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
         info.busInfo = v4l2Dev.busInfo;
         info.available = true;
         
-        // Find matching Qt device
-        // On Linux with GStreamer, Qt device IDs typically correspond to /dev/videoN numbers
-        // Extract the device number from path and match to Qt device by ID
-        QString videoNum;
-        if (v4l2Dev.path.startsWith("/dev/video")) {
-            videoNum = v4l2Dev.path.mid(10);  // Extract "0" from "/dev/video0"
-        }
+        // Find matching Qt device by NAME (not ID!)
+        // Qt device IDs are sequential numbers in enumeration order, NOT /dev/videoN numbers
+        // We need to find the Nth Qt device with matching card name, where N is how many
+        // V4L2 devices with the same card name we've already seen
         
-        bool matched = false;
-        for (const QCameraDevice& qtDev : qtDevices) {
-            QString qtId = QString::fromUtf8(qtDev.id());
-            // Try direct ID match (Qt ID might be the device number)
-            if (!videoNum.isEmpty() && qtId == videoNum) {
-                info.deviceId = qtId;
-                qDebug() << "  Matched V4L2" << v4l2Dev.path << "to Qt device by ID:" << info.deviceId;
-                matched = true;
-                break;
+        // Count how many V4L2 devices with the same card name come before this one
+        int cardInstance = 0;
+        for (int j = 0; j < i; ++j) {
+            if (v4l2Devices[j].card == v4l2Dev.card) {
+                cardInstance++;
             }
         }
         
-        // Fallback: match by name (less reliable)
-        if (!matched) {
-            for (const QCameraDevice& qtDev : qtDevices) {
-                QString qtName = qtDev.description();
-                if (qtName.contains(v4l2Dev.card)) {
+        // Find the (cardInstance)th Qt device with matching name
+        int foundInstance = 0;
+        for (const QCameraDevice& qtDev : qtDevices) {
+            QString qtName = qtDev.description();
+            if (qtName.contains(v4l2Dev.card)) {
+                if (foundInstance == cardInstance) {
                     info.deviceId = QString::fromUtf8(qtDev.id());
-                    qDebug() << "  Matched V4L2" << v4l2Dev.path << "to Qt device by name:" << info.deviceId;
+                    qDebug() << "  Matched V4L2" << v4l2Dev.path << "(instance" << cardInstance << ")"
+                             << "to Qt device:" << qtName << "id:" << info.deviceId;
                     break;
                 }
+                foundInstance++;
             }
+        }
+        
+        if (info.deviceId.isEmpty()) {
+            qWarning() << "  WARNING: No Qt device found for V4L2" << v4l2Dev.path;
         }
         
         // Build display name with device path
