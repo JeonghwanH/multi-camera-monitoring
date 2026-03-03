@@ -2,8 +2,10 @@
 #include <QDebug>
 #include <QMediaDevices>
 #include <algorithm>
+#include <cstring>
 
 #ifdef Q_OS_LINUX
+#include <cerrno>
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -27,26 +29,54 @@ DeviceDetector::~DeviceDetector() {
 bool DeviceDetector::isVideoCaptureDevice(const QString& devicePath) {
 #ifdef Q_OS_LINUX
     // On Linux, check V4L2 capabilities to filter out metadata nodes
+    // The devicePath should be like "/dev/video0"
+    
+    // If path doesn't look like a device path, assume it's valid (Qt internal ID)
+    if (!devicePath.startsWith("/dev/")) {
+        qDebug() << "DeviceDetector: Non-path device ID" << devicePath << "- assuming valid";
+        return true;
+    }
+    
     int fd = open(devicePath.toUtf8().constData(), O_RDWR | O_NONBLOCK);
     if (fd < 0) {
-        qDebug() << "DeviceDetector: Cannot open" << devicePath << "for capability check";
-        return false;
+        qDebug() << "DeviceDetector: Cannot open" << devicePath << "for capability check, errno:" << errno;
+        // If we can't open it, still include it (might be permission issue)
+        return true;
     }
     
     struct v4l2_capability cap;
+    memset(&cap, 0, sizeof(cap));
     bool isCapture = false;
     
     if (ioctl(fd, VIDIOC_QUERYCAP, &cap) == 0) {
+        // Check device_caps first (specific to this node)
+        // If V4L2_CAP_DEVICE_CAPS is set, use device_caps; otherwise use capabilities
+        __u32 caps = (cap.capabilities & V4L2_CAP_DEVICE_CAPS) ? cap.device_caps : cap.capabilities;
+        
         // Check for video capture capability (single-planar or multi-planar)
-        isCapture = (cap.device_caps & V4L2_CAP_VIDEO_CAPTURE) ||
-                   (cap.device_caps & V4L2_CAP_VIDEO_CAPTURE_MPLANE);
+        isCapture = (caps & V4L2_CAP_VIDEO_CAPTURE) ||
+                   (caps & V4L2_CAP_VIDEO_CAPTURE_MPLANE);
+        
+        // Also check if it's a metadata device (V4L2_CAP_META_CAPTURE)
+        bool isMetadata = (caps & V4L2_CAP_META_CAPTURE);
         
         qDebug() << "DeviceDetector: Device" << devicePath
                  << "card:" << (const char*)cap.card
-                 << "caps:" << Qt::hex << cap.device_caps
-                 << "VIDEO_CAPTURE:" << isCapture;
+                 << "capabilities:" << Qt::hex << cap.capabilities
+                 << "device_caps:" << Qt::hex << cap.device_caps
+                 << "effective_caps:" << Qt::hex << caps
+                 << "VIDEO_CAPTURE:" << isCapture
+                 << "META_CAPTURE:" << isMetadata;
+        
+        // If it's a metadata-only device, skip it
+        if (isMetadata && !isCapture) {
+            close(fd);
+            return false;
+        }
     } else {
-        qWarning() << "DeviceDetector: VIDIOC_QUERYCAP failed for" << devicePath;
+        qWarning() << "DeviceDetector: VIDIOC_QUERYCAP failed for" << devicePath << "errno:" << errno;
+        // If ioctl fails, still include the device
+        isCapture = true;
     }
     
     close(fd);
