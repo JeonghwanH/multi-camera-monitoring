@@ -132,15 +132,35 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
         info.busInfo = v4l2Dev.busInfo;
         info.available = true;
         
-        // Find matching Qt device by looking for one with matching name
-        // that hasn't been used yet
+        // Find matching Qt device
+        // On Linux with GStreamer, Qt device IDs typically correspond to /dev/videoN numbers
+        // Extract the device number from path and match to Qt device by ID
+        QString videoNum;
+        if (v4l2Dev.path.startsWith("/dev/video")) {
+            videoNum = v4l2Dev.path.mid(10);  // Extract "0" from "/dev/video0"
+        }
+        
+        bool matched = false;
         for (const QCameraDevice& qtDev : qtDevices) {
-            QString qtName = qtDev.description();
-            // Qt names have "(V4L2)" suffix, V4L2 card names don't
-            if (qtName.contains(v4l2Dev.card)) {
-                info.deviceId = QString::fromUtf8(qtDev.id());
-                qDebug() << "  Matched V4L2" << v4l2Dev.path << "to Qt device id:" << info.deviceId;
+            QString qtId = QString::fromUtf8(qtDev.id());
+            // Try direct ID match (Qt ID might be the device number)
+            if (!videoNum.isEmpty() && qtId == videoNum) {
+                info.deviceId = qtId;
+                qDebug() << "  Matched V4L2" << v4l2Dev.path << "to Qt device by ID:" << info.deviceId;
+                matched = true;
                 break;
+            }
+        }
+        
+        // Fallback: match by name (less reliable)
+        if (!matched) {
+            for (const QCameraDevice& qtDev : qtDevices) {
+                QString qtName = qtDev.description();
+                if (qtName.contains(v4l2Dev.card)) {
+                    info.deviceId = QString::fromUtf8(qtDev.id());
+                    qDebug() << "  Matched V4L2" << v4l2Dev.path << "to Qt device by name:" << info.deviceId;
+                    break;
+                }
             }
         }
         
@@ -198,85 +218,44 @@ QCameraDevice DeviceDetector::cameraDeviceByIndex(int index) const {
     // Find the device info with this index
     for (const auto& info : m_lastKnownDevices) {
         if (info.index == index) {
+            qDebug() << "DeviceDetector::cameraDeviceByIndex(" << index << ")"
+                     << "Looking for deviceId:" << info.deviceId
+                     << "path:" << info.devicePath;
+            
             QList<QCameraDevice> allDevices = QMediaDevices::videoInputs();
             
-#ifdef Q_OS_LINUX
-            // On Linux, we need to find the Qt device that matches our V4L2 device
-            // Strategy: Find Qt device with matching name AND that points to the same
-            // physical device (by trying to match path from V4L2 bus info)
-            
-            qDebug() << "DeviceDetector::cameraDeviceByIndex(" << index << ")"
-                     << "Looking for:" << info.name << "path:" << info.devicePath 
-                     << "bus:" << info.busInfo;
-            
-            // First try: exact deviceId match (if we stored it)
+            // Primary: match by stored deviceId
             if (!info.deviceId.isEmpty()) {
                 for (const auto& device : allDevices) {
                     if (QString::fromUtf8(device.id()) == info.deviceId) {
-                        qDebug() << "  Found by deviceId:" << info.deviceId;
+                        qDebug() << "  Found Qt device:" << device.description() 
+                                 << "id:" << QString::fromUtf8(device.id());
                         return device;
                     }
                 }
+                qDebug() << "  WARNING: deviceId" << info.deviceId << "not found in Qt devices";
             }
             
-            // Fallback: match by card name and take the Nth one that matches
-            // This works because Qt lists devices in the same order as V4L2
-            // Name format is "CardName #N (/dev/videoX)" or "CardName (/dev/videoX)"
-            QString targetCard = info.name;
-            
-            // Remove path suffix "(/dev/videoX)" first
-            int parenIndex = targetCard.lastIndexOf(" (");
+            // Fallback: try matching by name
+            QString cardName = info.name;
+            // Remove path suffix "(/dev/videoX)"
+            int parenIndex = cardName.lastIndexOf(" (");
             if (parenIndex > 0) {
-                targetCard = targetCard.left(parenIndex);
+                cardName = cardName.left(parenIndex);
             }
-            // Then remove "#N" suffix if present
-            int hashIndex = targetCard.lastIndexOf(" #");
+            // Remove "#N" suffix
+            int hashIndex = cardName.lastIndexOf(" #");
             if (hashIndex > 0) {
-                targetCard = targetCard.left(hashIndex);
+                cardName = cardName.left(hashIndex);
             }
             
-            int targetInstance = 0;
-            // Count how many devices with same card name come before this one
-            for (const auto& other : m_lastKnownDevices) {
-                if (other.index < index) {
-                    QString otherCard = other.name;
-                    // Remove path suffix
-                    int otherParen = otherCard.lastIndexOf(" (");
-                    if (otherParen > 0) {
-                        otherCard = otherCard.left(otherParen);
-                    }
-                    // Remove "#N" suffix
-                    int otherHash = otherCard.lastIndexOf(" #");
-                    if (otherHash > 0) {
-                        otherCard = otherCard.left(otherHash);
-                    }
-                    if (otherCard == targetCard) {
-                        targetInstance++;
-                    }
-                }
-            }
-            
-            qDebug() << "  Looking for card:" << targetCard << "instance:" << targetInstance;
-            
-            int foundInstance = 0;
+            qDebug() << "  Fallback: looking for card name:" << cardName;
             for (const auto& device : allDevices) {
-                QString qtName = device.description();
-                if (qtName.contains(targetCard)) {
-                    if (foundInstance == targetInstance) {
-                        qDebug() << "  Found Qt device:" << qtName << "id:" << QString::fromUtf8(device.id());
-                        return device;
-                    }
-                    foundInstance++;
-                }
-            }
-#else
-            // On non-Linux, simple ID match
-            for (const auto& device : allDevices) {
-                if (QString::fromUtf8(device.id()) == info.deviceId) {
+                if (device.description().contains(cardName)) {
+                    qDebug() << "  Found by name fallback:" << device.description();
                     return device;
                 }
             }
-#endif
         }
     }
     
