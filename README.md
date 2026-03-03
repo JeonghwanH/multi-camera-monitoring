@@ -12,6 +12,7 @@ A native C++ Qt application for monitoring multiple camera sources with buffered
 - **Auto-Detection**: Automatically detects and connects to wired cameras
 - **Expanded View**: Double-click any slot for a larger window view
 - **Flexible Configuration**: All settings configurable via UI and JSON
+- **Cross-Platform**: Supports macOS, Linux (Ubuntu), and Windows
 
 ## Screenshots
 
@@ -57,49 +58,18 @@ make -j$(nproc)
 | [CONFIGURATION.md](docs/CONFIGURATION.md) | Configuration schema and options |
 | [IMPLEMENTATION.md](docs/IMPLEMENTATION.md) | Implementation details and code examples |
 | [BUILD.md](docs/BUILD.md) | Build instructions for all platforms |
-| [**PERFORMANCE_ANALYSIS.md**](PERFORMANCE_ANALYSIS.md) | **Performance comparison, optimization recommendations, and migration guide** |
-| [**OPTIMIZATION_QUICK_GUIDE.md**](OPTIMIZATION_QUICK_GUIDE.md) | **Quick reference card with code examples (TL;DR version)** |
+| [MACOS_CAMERA_PERMISSION.md](docs/MACOS_CAMERA_PERMISSION.md) | macOS camera permission setup |
 
-## Performance & Optimization
+## Source Selection
 
-📊 **Want to improve performance by 60-75%?** 
+Each slot can be configured with different source types:
 
-We've conducted a comprehensive performance analysis comparing our current OpenCV-based approach with a production-grade Qt Multimedia implementation:
-
-### Quick Stats
-- **CPU Reduction:** 87% → 32% (-63%)
-- **Memory Reduction:** 1.6GB → 285MB (-82%)
-- **Latency Reduction:** 780ms → 85ms (-89%)
-- **Frame Drops:** 12/min → 1/min (-92%)
-
-### Documentation
-- 📖 [**PERFORMANCE_ANALYSIS.md**](PERFORMANCE_ANALYSIS.md) - Complete analysis with benchmarks, architecture comparison, and 5-week migration roadmap
-- ⚡ [**OPTIMIZATION_QUICK_GUIDE.md**](OPTIMIZATION_QUICK_GUIDE.md) - TL;DR with code examples and quick reference
-
-**Key Recommendations:**
-1. Replace OpenCV capture with Qt Multimedia (`QCamera` + `QMediaCaptureSession`)
-2. Eliminate manual frame buffering (Qt handles it internally)
-3. Use GPU-accelerated rendering (`QGraphicsVideoItem`)
-4. Enable hardware H.264 encoding (`QMediaRecorder`)
-
-These changes enable hardware acceleration on all platforms while significantly reducing resource consumption.
-
-## Default Slot Assignment
-
-By default, slots are automatically paired with device indices:
-
-| Slot | Default Source |
-|------|----------------|
-| Slot 0 | Device 0 (auto) |
-| Slot 1 | Device 1 (auto) |
-| Slot 2 | Device 2 (auto) |
-| ... | ... |
-| Slot 7 | Device 7 (auto) |
-
-Users can change any slot to:
-- **None**: No streaming
-- **Wired [0-7]**: Specific device index
-- **RTSP**: Custom RTSP URL
+| Source Type | Description |
+|-------------|-------------|
+| **None** | No streaming (displays "No Signal") |
+| **Auto** | Automatically pairs with device index matching slot number |
+| **Wired [0-7]** | Specific USB/V4L2 device index |
+| **RTSP** | Custom RTSP stream URL |
 
 ## Configuration
 
@@ -108,7 +78,6 @@ Edit `config.json` or use the Settings screen:
 ```json
 {
     "grid": {
-        "maxSlots": 8,
         "rows": 2,
         "columns": 4
     },
@@ -128,7 +97,7 @@ Edit `config.json` or use the Settings screen:
 
 ## Recording Output
 
-Videos are saved in chunks:
+Videos are saved in chunks per slot:
 ```
 recordings/
 ├── slot_0/
@@ -143,12 +112,22 @@ recordings/
 ## Requirements
 
 - Qt 6.5+
-- FFmpeg 5.0+
-- OpenCV 4.8+
 - CMake 3.16+
 - C++17 compiler
+
+### Platform-Specific
+
+**macOS:**
+- Xcode Command Line Tools
+- Camera permission required (see [MACOS_CAMERA_PERMISSION.md](docs/MACOS_CAMERA_PERMISSION.md))
+
+**Linux (Ubuntu):**
+- GStreamer plugins for Qt Multimedia
+- v4l2 utilities (optional, for debugging)
+
+**Windows:**
+- Visual Studio 2019+ or MinGW
 
 ## License
 
 MIT License
-
