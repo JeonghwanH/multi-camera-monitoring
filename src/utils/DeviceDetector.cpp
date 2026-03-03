@@ -348,4 +348,13 @@ QString DeviceDetector::deviceName(int index) const {
     return QString();
 }
 
+QString DeviceDetector::devicePath(int index) const {
+    for (const auto& device : m_lastKnownDevices) {
+        if (device.index == index) {
+            return device.devicePath;
+        }
+    }
+    return QString();
+}
+
 } // namespace MCM

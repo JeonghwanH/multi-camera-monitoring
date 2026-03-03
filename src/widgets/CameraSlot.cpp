@@ -425,13 +425,33 @@ void CameraSlot::startStream() {
         m_rtspCapture->start();
         qDebug() << "  RTSP stream started:" << slotConfig.source;
     } else {
-        // Wired camera via QCamera + QMediaCaptureSession
+        // Wired camera
         int deviceIndex = slotConfig.source.toInt();
         qDebug() << "  >>> Starting Camera pipeline <<<";
         qDebug() << "  Device index (filtered):" << deviceIndex;
         
-        // Use DeviceDetector to get the actual QCameraDevice by filtered index
-        // This handles Linux V4L2 metadata node filtering and sequential numbering
+#ifdef Q_OS_LINUX
+        // On Linux, use V4L2 device path directly via GStreamer pipeline
+        // This ensures the exact device we display is the one being played
+        QString devicePath = m_deviceDetector->devicePath(deviceIndex);
+        
+        if (devicePath.isEmpty()) {
+            qDebug() << "  Device index" << deviceIndex << "not available (no path)";
+            qDebug() << "  Available devices:" << m_deviceDetector->deviceCount();
+            m_streaming = false;
+            updateStatusLabel("No Signal", true);
+            return;
+        }
+        
+        qDebug() << "  Using V4L2 device path:" << devicePath;
+        m_cameraCapture->setDevicePath(devicePath);  // Use device path directly
+        qDebug() << "  Device path configured, now setting video output...";
+        m_cameraCapture->setVideoOutput(videoItem);
+        qDebug() << "  Video output set, now calling start()...";
+        m_cameraCapture->start();
+        qDebug() << "  Camera start() called (V4L2 mode)";
+#else
+        // On other platforms (macOS, Windows), use Qt's device enumeration
         QCameraDevice cameraDevice = m_deviceDetector->cameraDeviceByIndex(deviceIndex);
         
         if (cameraDevice.isNull()) {
@@ -450,7 +470,8 @@ void CameraSlot::startStream() {
         m_cameraCapture->setVideoOutput(videoItem);  // Set AFTER device
         qDebug() << "  Video output set, now calling start()...";
         m_cameraCapture->start();
-        qDebug() << "  Camera start() called";
+        qDebug() << "  Camera start() called (QCamera mode)";
+#endif
     }
     
     qDebug() << "########## CameraSlot" << m_slotIndex << "startStream() DONE ##########";
