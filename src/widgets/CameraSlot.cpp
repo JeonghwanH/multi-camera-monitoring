@@ -7,6 +7,7 @@
 #include "core/QtVideoRecorder.h"
 #include "utils/DeviceDetector.h"
 
+#include <QCameraDevice>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPainter>
@@ -220,16 +221,18 @@ void CameraSlot::updateSourceSelector() {
                          QString("Auto (Device %1)").arg(m_slotIndex)});
     m_sourceSelector->addItem(QString("Auto (Device %1)").arg(m_slotIndex));
     
-    // Wired devices (from Qt's QMediaDevices)
-    auto devices = QtCameraCapture::availableDevices();
-    for (int i = 0; i < devices.size(); ++i) {
-        QString displayText = QString("Wired %1: %2").arg(i).arg(devices[i].description());
-        m_sourceItems.append({SourceType::Wired, QString::number(i), displayText});
+    // Wired devices (from DeviceDetector - filtered to only include capture devices)
+    // On Linux, this excludes metadata nodes and provides sequential numbering
+    QList<DeviceInfo> devices = m_deviceDetector->lastKnownDevices();
+    for (const auto& device : devices) {
+        QString displayText = QString("Wired %1: %2").arg(device.index).arg(device.name);
+        m_sourceItems.append({SourceType::Wired, QString::number(device.index), displayText});
         m_sourceSelector->addItem(displayText);
     }
     
     // Add some wired options even if not detected (for manual selection)
-    for (int i = devices.size(); i < 8; ++i) {
+    int startIndex = devices.isEmpty() ? 0 : devices.last().index + 1;
+    for (int i = startIndex; i < 8; ++i) {
         QString displayText = QString("Wired %1").arg(i);
         m_sourceItems.append({SourceType::Wired, QString::number(i), displayText});
         m_sourceSelector->addItem(displayText);
@@ -425,19 +428,24 @@ void CameraSlot::startStream() {
         // Wired camera via QCamera + QMediaCaptureSession
         int deviceIndex = slotConfig.source.toInt();
         qDebug() << "  >>> Starting Camera pipeline <<<";
-        qDebug() << "  Device index:" << deviceIndex;
+        qDebug() << "  Device index (filtered):" << deviceIndex;
         
-        // Check if device exists before attempting to connect
-        auto availableDevices = QtCameraCapture::availableDevices();
-        if (deviceIndex < 0 || deviceIndex >= availableDevices.size()) {
-            qDebug() << "  Device index" << deviceIndex << "not available (have" << availableDevices.size() << "devices)";
+        // Use DeviceDetector to get the actual QCameraDevice by filtered index
+        // This handles Linux V4L2 metadata node filtering and sequential numbering
+        QCameraDevice cameraDevice = m_deviceDetector->cameraDeviceByIndex(deviceIndex);
+        
+        if (cameraDevice.isNull()) {
+            qDebug() << "  Device index" << deviceIndex << "not available";
+            qDebug() << "  Available devices:" << m_deviceDetector->deviceCount();
             qDebug() << "  Showing No Signal instead of Connecting";
             m_streaming = false;  // Not actually streaming
             updateStatusLabel("No Signal", true);
             return;
         }
         
-        m_cameraCapture->setDeviceIndex(deviceIndex);  // Configure device first
+        qDebug() << "  Resolved to device:" << cameraDevice.description() << "id:" << cameraDevice.id();
+        
+        m_cameraCapture->setCameraDevice(cameraDevice);  // Configure device first
         qDebug() << "  Device configured, now setting video output...";
         m_cameraCapture->setVideoOutput(videoItem);  // Set AFTER device
         qDebug() << "  Video output set, now calling start()...";

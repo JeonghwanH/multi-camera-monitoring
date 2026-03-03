@@ -1,8 +1,14 @@
 #include "DeviceDetector.h"
 #include <QDebug>
 #include <QMediaDevices>
-#include <QCameraDevice>
 #include <algorithm>
+
+#ifdef Q_OS_LINUX
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/ioctl.h>
+#include <linux/videodev2.h>
+#endif
 
 namespace MCM {
 
@@ -18,37 +24,110 @@ DeviceDetector::~DeviceDetector() {
     stopMonitoring();
 }
 
+bool DeviceDetector::isVideoCaptureDevice(const QString& devicePath) {
+#ifdef Q_OS_LINUX
+    // On Linux, check V4L2 capabilities to filter out metadata nodes
+    int fd = open(devicePath.toUtf8().constData(), O_RDWR | O_NONBLOCK);
+    if (fd < 0) {
+        qDebug() << "DeviceDetector: Cannot open" << devicePath << "for capability check";
+        return false;
+    }
+    
+    struct v4l2_capability cap;
+    bool isCapture = false;
+    
+    if (ioctl(fd, VIDIOC_QUERYCAP, &cap) == 0) {
+        // Check for video capture capability (single-planar or multi-planar)
+        isCapture = (cap.device_caps & V4L2_CAP_VIDEO_CAPTURE) ||
+                   (cap.device_caps & V4L2_CAP_VIDEO_CAPTURE_MPLANE);
+        
+        qDebug() << "DeviceDetector: Device" << devicePath
+                 << "card:" << (const char*)cap.card
+                 << "caps:" << Qt::hex << cap.device_caps
+                 << "VIDEO_CAPTURE:" << isCapture;
+    } else {
+        qWarning() << "DeviceDetector: VIDIOC_QUERYCAP failed for" << devicePath;
+    }
+    
+    close(fd);
+    return isCapture;
+#else
+    // On non-Linux platforms, assume all devices are capture devices
+    Q_UNUSED(devicePath);
+    return true;
+#endif
+}
+
 QList<DeviceInfo> DeviceDetector::detectDevices() {
     QList<DeviceInfo> devices;
     
     // Use Qt's QMediaDevices (GPU-friendly, no OpenCV)
     QList<QCameraDevice> availableDevices = QMediaDevices::videoInputs();
     
+    qDebug() << "DeviceDetector: Qt found" << availableDevices.size() << "raw devices";
+    
+    int filteredIndex = 0;  // Our sequential index
+    
     for (int i = 0; i < availableDevices.size(); ++i) {
         const QCameraDevice& device = availableDevices.at(i);
+        QString deviceId = QString::fromUtf8(device.id());
+        QString deviceName = device.description();
+        
+        qDebug() << "  Raw device[" << i << "]:" << deviceName << "id:" << deviceId;
+        
+#ifdef Q_OS_LINUX
+        // On Linux, the device ID is typically the device path like "/dev/video0"
+        // Filter to only include actual video capture devices
+        if (!isVideoCaptureDevice(deviceId)) {
+            qDebug() << "    -> SKIPPED (not a capture device)";
+            continue;
+        }
+        qDebug() << "    -> INCLUDED as filtered index" << filteredIndex;
+#endif
+        
         DeviceInfo info;
-        info.index = i;  // Index in QMediaDevices list
-        info.name = device.description();
+        info.index = filteredIndex;  // Sequential index after filtering
+        info.name = deviceName;
+        info.deviceId = deviceId;
         info.available = true;
         devices.append(info);
+        
+        filteredIndex++;
     }
     
-    // Sort by index
-    std::sort(devices.begin(), devices.end(), [](const DeviceInfo& a, const DeviceInfo& b) {
-        return a.index < b.index;
-    });
+    qDebug() << "DeviceDetector: Filtered to" << devices.size() << "capture devices";
+    for (const auto& dev : devices) {
+        qDebug() << "  [" << dev.index << "]" << dev.name << "(id:" << dev.deviceId << ")";
+    }
     
     return devices;
 }
 
-bool DeviceDetector::checkDevice(int index, QString& outName) {
-    QList<QCameraDevice> devices = QMediaDevices::videoInputs();
-    
-    if (index >= 0 && index < devices.size()) {
-        outName = devices.at(index).description();
-        return true;
+QCameraDevice DeviceDetector::cameraDeviceByIndex(int index) const {
+    // Find the device info with this index
+    for (const auto& info : m_lastKnownDevices) {
+        if (info.index == index) {
+            // Find the actual QCameraDevice with matching ID
+            QList<QCameraDevice> allDevices = QMediaDevices::videoInputs();
+            for (const auto& device : allDevices) {
+                if (QString::fromUtf8(device.id()) == info.deviceId) {
+                    return device;
+                }
+            }
+        }
     }
     
+    qWarning() << "DeviceDetector: No device found for filtered index" << index;
+    return QCameraDevice();  // Return null device
+}
+
+bool DeviceDetector::checkDevice(int index, QString& outName) {
+    for (const auto& device : m_lastKnownDevices) {
+        if (device.index == index) {
+            outName = device.name;
+            return device.available;
+        }
+    }
     return false;
 }
 
@@ -61,7 +140,7 @@ void DeviceDetector::startMonitoring(int intervalMs) {
     m_pollTimer->start(intervalMs);
     
     qDebug() << "DeviceDetector: Started monitoring with" << intervalMs << "ms interval";
-    qDebug() << "DeviceDetector: Found" << m_lastKnownDevices.size() << "devices";
+    qDebug() << "DeviceDetector: Found" << m_lastKnownDevices.size() << "capture devices";
 }
 
 void DeviceDetector::stopMonitoring() {
@@ -75,7 +154,8 @@ void DeviceDetector::pollDevices() {
     for (const auto& current : currentDevices) {
         bool found = false;
         for (const auto& known : m_lastKnownDevices) {
-            if (known.index == current.index && known.name == current.name) {
+            // Match by device ID, not index (index may shift)
+            if (known.deviceId == current.deviceId) {
                 found = true;
                 break;
             }
@@ -90,7 +170,7 @@ void DeviceDetector::pollDevices() {
     for (const auto& known : m_lastKnownDevices) {
         bool found = false;
         for (const auto& current : currentDevices) {
-            if (known.index == current.index && known.name == current.name) {
+            if (known.deviceId == current.deviceId) {
                 found = true;
                 break;
             }
@@ -127,4 +207,3 @@ QString DeviceDetector::deviceName(int index) const {
 }
 
 } // namespace MCM
-
