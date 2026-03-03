@@ -76,13 +76,6 @@ public:
     QString deviceName(int index) const;
 
     /**
-     * @brief Get device path by index (Linux only, e.g., "/dev/video0")
-     * @param index Our sequential index (0, 1, 2, ...)
-     * @return Device path or empty string if not found
-     */
-    QString devicePath(int index) const;
-
-    /**
      * @brief Get QCameraDevice by our filtered index
      * @param index Our sequential index (0, 1, 2, ...)
      * @return QCameraDevice or null device if not found

@@ -57,9 +57,6 @@ void QtCameraCapture::setCameraDevice(const QCameraDevice& device) {
         return;
     }
     
-    m_useV4L2Pipeline = false;  // Use QCamera
-    m_devicePath.clear();
-    
     // Find the index for this device
     auto devices = QMediaDevices::videoInputs();
     for (int i = 0; i < devices.size(); ++i) {
@@ -70,65 +67,6 @@ void QtCameraCapture::setCameraDevice(const QCameraDevice& device) {
     }
     
     setupCamera(device);
-}
-
-void QtCameraCapture::setDevicePath(const QString& path) {
-    qDebug() << "=== QtCameraCapture::setDevicePath ===" << "slot" << m_slotId << "path:" << path;
-    
-    if (path.isEmpty()) {
-        qWarning() << "  ERROR: Empty device path";
-        emit errorOccurred("Empty device path");
-        return;
-    }
-    
-    m_devicePath = path;
-    m_useV4L2Pipeline = true;  // Use QMediaPlayer with GStreamer pipeline
-    
-    setupV4L2Pipeline(path);
-}
-
-void QtCameraCapture::setupV4L2Pipeline(const QString& devicePath) {
-    qDebug() << "=== QtCameraCapture::setupV4L2Pipeline ===" << "slot" << m_slotId;
-    qDebug() << "  Device path:" << devicePath;
-    
-    // Clean up any existing QCamera setup
-    cleanupCamera();
-    
-    // Also clean up old session
-    if (m_session) {
-        m_session->setVideoOutput(nullptr);
-        delete m_session;
-        m_session = nullptr;
-    }
-    
-    // Clean up old player
-    if (m_player) {
-        m_player->stop();
-        delete m_player;
-        m_player = nullptr;
-    }
-    
-    m_videoOutput = nullptr;
-    m_connected = false;
-    
-    // Create QMediaPlayer for GStreamer pipeline
-    m_player = new QMediaPlayer(this);
-    qDebug() << "  Created QMediaPlayer:" << m_player;
-    
-    // Connect player signals
-    connect(m_player, &QMediaPlayer::playbackStateChanged,
-            this, &QtCameraCapture::onPlayerStateChanged);
-    connect(m_player, &QMediaPlayer::errorOccurred,
-            this, &QtCameraCapture::onPlayerErrorOccurred);
-    
-    // Build GStreamer pipeline URL
-    // Format: gst-pipeline: v4l2src device=/dev/video0 ! videoconvert ! video/x-raw,format=RGB ! appsink name=sink
-    QString pipeline = QString("gst-pipeline: v4l2src device=%1 ! videoconvert ! videoscale ! video/x-raw ! appsink name=qtvideosink").arg(devicePath);
-    
-    qDebug() << "  GStreamer pipeline:" << pipeline;
-    m_player->setSource(QUrl(pipeline));
-    
-    qDebug() << "=== setupV4L2Pipeline END ===" << "slot" << m_slotId;
 }
 
 void QtCameraCapture::setupCamera(const QCameraDevice& device) {
@@ -241,35 +179,28 @@ void QtCameraCapture::cleanupCamera() {
 
 void QtCameraCapture::setVideoOutput(QObject* videoOutput) {
     qDebug() << "QtCameraCapture::setVideoOutput" << "slot" << m_slotId 
-             << "videoOutput:" << videoOutput 
-             << "useV4L2Pipeline:" << m_useV4L2Pipeline;
-    
-    m_videoOutput = videoOutput;  // Store for later use
-    
-    if (m_useV4L2Pipeline && m_player) {
-        // V4L2 mode: use QMediaPlayer
-        m_player->setVideoOutput(videoOutput);
-        qDebug() << "  Video output SET on player (V4L2 mode)";
-    } else if (m_session) {
-        // QCamera mode: use session
+             << "videoOutput:" << videoOutput << "session:" << m_session;
+    m_videoOutput = videoOutput;  // Store for session recreation
+    if (m_session) {
         m_session->setVideoOutput(videoOutput);
-        qDebug() << "  Video output SET on session (QCamera mode)";
-    } else {
-        qDebug() << "  WARNING: No session or player to set video output on!";
-    }
-    
-    // Connect to the video item's internal sink for frame access
-    QGraphicsVideoItem* videoItem = qobject_cast<QGraphicsVideoItem*>(videoOutput);
-    if (videoItem) {
-        QVideoSink* itemSink = videoItem->videoSink();
-        if (itemSink) {
-            // Disconnect any previous connection to avoid duplicates
-            disconnect(itemSink, &QVideoSink::videoFrameChanged,
-                      this, &QtCameraCapture::onVideoFrameChanged);
-            connect(itemSink, &QVideoSink::videoFrameChanged,
-                   this, &QtCameraCapture::onVideoFrameChanged);
-            qDebug() << "  Connected to video item's sink for frame access";
+        qDebug() << "  Video output SET on session";
+        
+        // Connect to the video item's internal sink for frame access
+        // This allows us to get frames for FPS calculation without conflicting with display
+        QGraphicsVideoItem* videoItem = qobject_cast<QGraphicsVideoItem*>(videoOutput);
+        if (videoItem) {
+            QVideoSink* itemSink = videoItem->videoSink();
+            if (itemSink) {
+                // Disconnect any previous connection to avoid duplicates
+                disconnect(itemSink, &QVideoSink::videoFrameChanged,
+                          this, &QtCameraCapture::onVideoFrameChanged);
+                connect(itemSink, &QVideoSink::videoFrameChanged,
+                       this, &QtCameraCapture::onVideoFrameChanged);
+                qDebug() << "  Connected to video item's sink for frame access";
+            }
         }
+    } else {
+        qDebug() << "  WARNING: No session to set video output on!";
     }
 }
 
@@ -283,76 +214,49 @@ void QtCameraCapture::setVideoSink(QVideoSink* sink) {
 
 void QtCameraCapture::start() {
     qDebug() << "=== QtCameraCapture::start ===" << "slot" << m_slotId;
-    qDebug() << "  useV4L2Pipeline:" << m_useV4L2Pipeline;
-    qDebug() << "  Camera:" << m_camera << "Player:" << m_player << "VideoOutput:" << m_videoOutput;
+    qDebug() << "  Camera:" << m_camera << "Session:" << m_session << "VideoOutput:" << m_videoOutput;
+    
+    if (!m_camera) {
+        qWarning() << "  ERROR: No camera set, cannot start";
+        emit errorOccurred("No camera device set");
+        return;
+    }
+    
+    if (!m_session) {
+        qWarning() << "  ERROR: No session!";
+    }
     
     if (!m_videoOutput) {
         qWarning() << "  WARNING: No video output set - frames won't be displayed!";
     }
     
-    if (m_useV4L2Pipeline) {
-        // V4L2 mode: start QMediaPlayer
-        if (!m_player) {
-            qWarning() << "  ERROR: No player set for V4L2 mode";
-            emit errorOccurred("No player for V4L2 capture");
-            return;
-        }
-        
-        qDebug() << "  Calling m_player->play() (V4L2 mode)...";
-        qDebug() << "  Player source:" << m_player->source();
-        m_player->play();
-        qDebug() << "  Player play() called, state:" << m_player->playbackState();
-    } else {
-        // QCamera mode
-        if (!m_camera) {
-            qWarning() << "  ERROR: No camera set, cannot start";
-            emit errorOccurred("No camera device set");
-            return;
-        }
-        
-        if (!m_session) {
-            qWarning() << "  ERROR: No session!";
-        }
-        
-        qDebug() << "  Calling m_camera->start() (QCamera mode)...";
-        m_camera->start();
-        qDebug() << "  Camera start() called, active:" << m_camera->isActive();
-    }
+    qDebug() << "  Calling m_camera->start()...";
+    m_camera->start();
+    qDebug() << "  Camera start() called, active:" << m_camera->isActive();
 }
 
 void QtCameraCapture::stop() {
     qDebug() << "=== QtCameraCapture::stop ===" << "slot" << m_slotId;
-    qDebug() << "  useV4L2Pipeline:" << m_useV4L2Pipeline;
+    qDebug() << "  Camera:" << m_camera << "active:" << (m_camera ? m_camera->isActive() : false);
     
-    if (m_useV4L2Pipeline) {
-        // V4L2 mode: stop QMediaPlayer
-        if (m_player) {
-            qDebug() << "  Stopping player...";
-            m_player->stop();
-            m_player->setVideoOutput(nullptr);
-        }
-    } else {
-        // QCamera mode
-        qDebug() << "  Camera:" << m_camera << "active:" << (m_camera ? m_camera->isActive() : false);
-        if (m_camera && m_camera->isActive()) {
-            qDebug() << "  Stopping camera...";
-            m_camera->stop();
-        }
-        if (m_session) {
-            qDebug() << "  Clearing video output from session...";
-            m_session->setVideoOutput(nullptr);
-        }
+    if (m_camera && m_camera->isActive()) {
+        qDebug() << "  Stopping camera...";
+        m_camera->stop();
     }
     
+    // Clear video output to ensure clean state for source switching
+    // Also clear stored pointer since the video item may be deleted
+    if (m_session) {
+        qDebug() << "  Clearing video output from session...";
+        m_session->setVideoOutput(nullptr);
+    }
     m_videoOutput = nullptr;  // Clear stored pointer - video item will be recreated
+    
     m_connected = false;
     qDebug() << "  Stop complete";
 }
 
 bool QtCameraCapture::isActive() const {
-    if (m_useV4L2Pipeline) {
-        return m_player && m_player->playbackState() == QMediaPlayer::PlayingState;
-    }
     return m_camera && m_camera->isActive();
 }
 
@@ -397,33 +301,6 @@ void QtCameraCapture::onVideoFrameChanged(const QVideoFrame& frame) {
     if (frame.isValid()) {
         emit frameReady(frame);
     }
-}
-
-void QtCameraCapture::onPlayerStateChanged(QMediaPlayer::PlaybackState state) {
-    qDebug() << "*** QtCameraCapture::onPlayerStateChanged ***" << "slot" << m_slotId
-             << "state:" << state << "was_connected:" << m_connected;
-    
-    if (state == QMediaPlayer::PlayingState && !m_connected) {
-        m_connected = true;
-        qDebug() << "  Emitting connectionEstablished signal (V4L2 mode)";
-        emit connectionEstablished();
-    } else if (state == QMediaPlayer::StoppedState && m_connected) {
-        m_connected = false;
-        qDebug() << "  Emitting connectionLost signal (V4L2 mode)";
-        emit connectionLost();
-    }
-}
-
-void QtCameraCapture::onPlayerErrorOccurred(QMediaPlayer::Error error, const QString& errorString) {
-    qWarning() << "QtCameraCapture: Player error" << error << "-" << errorString 
-               << "for slot" << m_slotId;
-    
-    if (m_connected) {
-        m_connected = false;
-        emit connectionLost();
-    }
-    
-    emit errorOccurred(errorString);
 }
 
 } // namespace MCM

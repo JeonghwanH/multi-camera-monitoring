@@ -6,7 +6,6 @@
 #include <QMediaCaptureSession>
 #include <QMediaDevices>
 #include <QCameraDevice>
-#include <QMediaPlayer>
 #include <QVideoSink>
 #include <QVideoFrame>
 #include "core/Config.h"
@@ -50,13 +49,6 @@ public:
      * @param device QCameraDevice to use
      */
     void setCameraDevice(const QCameraDevice& device);
-
-    /**
-     * @brief Set V4L2 device path directly (Linux only)
-     * Uses QMediaPlayer with GStreamer pipeline for precise device control
-     * @param path Device path like "/dev/video0"
-     */
-    void setDevicePath(const QString& path);
 
     /**
      * @brief Set video output (QGraphicsVideoItem or QVideoWidget)
@@ -140,23 +132,17 @@ private slots:
     void onCameraActiveChanged(bool active);
     void onCameraErrorOccurred(QCamera::Error error, const QString& errorString);
     void onVideoFrameChanged(const QVideoFrame& frame);
-    void onPlayerStateChanged(QMediaPlayer::PlaybackState state);
-    void onPlayerErrorOccurred(QMediaPlayer::Error error, const QString& errorString);
 
 private:
     void setupCamera(const QCameraDevice& device);
-    void setupV4L2Pipeline(const QString& devicePath);
     void cleanupCamera();
 
     int m_slotId;
     int m_deviceIndex{-1};
     bool m_connected{false};
-    bool m_useV4L2Pipeline{false};  // True when using QMediaPlayer for V4L2
-    QString m_devicePath;           // V4L2 device path (Linux only)
 
     QCamera* m_camera{nullptr};
     QMediaCaptureSession* m_session{nullptr};
-    QMediaPlayer* m_player{nullptr};  // For V4L2 pipeline on Linux
     QVideoSink* m_frameSink{nullptr};  // For frame access (recording)
     QObject* m_videoOutput{nullptr};   // Store for session recreation
 };
