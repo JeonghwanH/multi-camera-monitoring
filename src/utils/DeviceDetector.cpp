@@ -126,7 +126,8 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
     qDebug() << "=== Qt Device List ===";
     for (int q = 0; q < qtDevices.size(); ++q) {
         qDebug() << "  Qt[" << q << "] id:" << QString::fromUtf8(qtDevices[q].id()) 
-                 << "name:" << qtDevices[q].description();
+                 << "name:" << qtDevices[q].description()
+                 << "position:" << static_cast<int>(qtDevices[q].position());
     }
     qDebug() << "=== V4L2 to Qt Matching ===";
     
@@ -168,9 +169,10 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
             const QCameraDevice& qtDev = qtDevices[q];
             QString qtId = QString::fromUtf8(qtDev.id());
             QString qtName = qtDev.description();
+            int position = static_cast<int>(qtDev.position());
             
             bool idMatches = (qtId == targetDeviceId);
-            qDebug() << "    Qt[" << q << "] id:" << qtId << "name:" << qtName
+            qDebug() << "    Qt[" << q << "] id:" << qtId << "pos:" << position << "name:" << qtName
                      << "| ID match:" << idMatches;
             
             if (idMatches) {
