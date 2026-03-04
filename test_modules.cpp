@@ -136,13 +136,7 @@ private slots:
         // Reset video widget for clean state
         m_videoWidget->resetVideoItem();
         
-        // Set video output FIRST
-        QGraphicsVideoItem* videoItem = m_videoWidget->videoItem();
-        qDebug() << "VideoItem:" << videoItem;
-        m_cameraCapture->setVideoOutput(videoItem);
-
-        // Now set device and start
-        // Use cameraDeviceByIndex which uses our V4L2->Qt mapping
+        // Verify Qt device first
         qDebug() << "\nCalling cameraDeviceByIndex(" << device.index << ")...";
         QCameraDevice qtDevice = m_deviceDetector->cameraDeviceByIndex(device.index);
         qDebug() << "Got QCameraDevice:";
@@ -157,8 +151,15 @@ private slots:
 
         m_statusLabel->setText("Status: Starting camera...");
         
-        // Set device index (this will use our mapping internally)
+        // Set device index FIRST (this creates new session)
         m_cameraCapture->setDeviceIndex(device.index);
+        
+        // THEN set video output on the new session
+        QGraphicsVideoItem* videoItem = m_videoWidget->videoItem();
+        qDebug() << "Setting VideoItem:" << videoItem;
+        m_cameraCapture->setVideoOutput(videoItem);
+        
+        // Now start
         m_cameraCapture->start();
         
         qDebug() << "========== PLAY DONE ==========\n";
