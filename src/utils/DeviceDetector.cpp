@@ -147,79 +147,54 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
         info.busInfo = v4l2Dev.busInfo;
         info.available = true;
         
-        // Find matching Qt device by NAME (not ID!)
-        // Qt device IDs are sequential numbers in enumeration order, NOT /dev/videoN numbers
-        // We need to find the Nth Qt device with matching card name, where N is how many
-        // V4L2 devices with the same card name we've already seen
+        // Match by device NUMBER from path (Qt device ID = /dev/videoN number)
+        // This is the ONLY reliable way to match because names can be duplicated
+        // e.g., /dev/video0 -> Qt device ID "0"
+        //       /dev/video6 -> Qt device ID "6"
         
         qDebug() << "";
-        qDebug() << "--- Matching V4L2[" << i << "]:" << v4l2Dev.path << "card:" << v4l2Dev.card << "---";
+        qDebug() << "--- Matching V4L2[" << i << "]:" << v4l2Dev.path << "---";
         
-        // Extract base product name from V4L2 card (before the colon)
-        // V4L2 format: "ProductName: Description" (e.g., "AV.io SDI+: AV.io SDI+")
-        // Qt format: "ProductName (V4L2)" (e.g., "AV.io SDI+ (V4L2)")
-        QString v4l2BaseName = v4l2Dev.card;
-        int colonIdx = v4l2BaseName.indexOf(':');
-        if (colonIdx > 0) {
-            v4l2BaseName = v4l2BaseName.left(colonIdx).trimmed();
+        // Extract device number from path: "/dev/video0" -> "0"
+        QString targetDeviceId;
+        if (v4l2Dev.path.startsWith("/dev/video")) {
+            targetDeviceId = v4l2Dev.path.mid(10);  // Get everything after "/dev/video"
         }
-        qDebug() << "  V4L2 base name:" << v4l2BaseName;
+        qDebug() << "  Target Qt device ID:" << targetDeviceId;
         
-        // Count how many V4L2 devices with the same BASE name come before this one
-        int cardInstance = 0;
-        for (int j = 0; j < i; ++j) {
-            QString otherBaseName = v4l2Devices[j].card;
-            int otherColon = otherBaseName.indexOf(':');
-            if (otherColon > 0) {
-                otherBaseName = otherBaseName.left(otherColon).trimmed();
-            }
-            if (otherBaseName == v4l2BaseName) {
-                cardInstance++;
-            }
-        }
-        qDebug() << "  This is instance" << cardInstance << "of base name:" << v4l2BaseName;
-        
-        // Log ALL potential Qt matches (don't break, just log)
-        qDebug() << "  Checking all Qt devices for matches:";
-        int foundInstance = 0;
+        // Find Qt device with matching ID
         int selectedQtIndex = -1;
         for (int q = 0; q < qtDevices.size(); ++q) {
             const QCameraDevice& qtDev = qtDevices[q];
-            QString qtName = qtDev.description();
             QString qtId = QString::fromUtf8(qtDev.id());
+            QString qtName = qtDev.description();
             
-            // Check if Qt name contains the V4L2 base name
-            bool nameContains = qtName.contains(v4l2BaseName);
-            bool isTargetInstance = (foundInstance == cardInstance);
-            
+            bool idMatches = (qtId == targetDeviceId);
             qDebug() << "    Qt[" << q << "] id:" << qtId << "name:" << qtName
-                     << "| contains(" << v4l2BaseName << "):" << nameContains 
-                     << "| instance:" << foundInstance
-                     << "| target:" << cardInstance
-                     << "| MATCH:" << (nameContains && isTargetInstance);
+                     << "| ID match:" << idMatches;
             
-            if (nameContains) {
-                if (isTargetInstance && info.deviceId.isEmpty()) {
-                    // This is our match - store it but continue logging
-                    info.deviceId = qtId;
-                    selectedQtIndex = q;
-                }
-                foundInstance++;
+            if (idMatches) {
+                info.deviceId = qtId;
+                selectedQtIndex = q;
+                // Don't break - continue logging all devices
             }
         }
         
         if (!info.deviceId.isEmpty()) {
-            qDebug() << "  >>> SELECTED: V4L2" << v4l2Dev.path << "-> Qt[" << selectedQtIndex << "] id:" << info.deviceId;
+            qDebug() << "  >>> SELECTED: V4L2" << v4l2Dev.path << "-> Qt ID:" << info.deviceId;
         } else {
-            qWarning() << "  >>> WARNING: No Qt device found for V4L2" << v4l2Dev.path;
+            qWarning() << "  >>> WARNING: No Qt device with ID" << targetDeviceId << "found for" << v4l2Dev.path;
         }
         
         // Build display name with device path
-        // Format: "BaseName (path)" or "BaseName #N (path)" for duplicates
-        // Use base name (without colon suffix) for cleaner display
-        QString displayName = v4l2BaseName;
+        // Extract base name from card: "ProductName: Description" -> "ProductName"
+        QString baseName = v4l2Dev.card;
+        int colonIdx = baseName.indexOf(':');
+        if (colonIdx > 0) {
+            baseName = baseName.left(colonIdx).trimmed();
+        }
         
-        // Check if there are other devices with the same BASE name
+        // Check if there are other devices with the same base name
         int sameNameCount = 0;
         int sameNameIndex = 0;
         for (int j = 0; j < v4l2Devices.size(); ++j) {
@@ -228,14 +203,16 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
             if (otherColon > 0) {
                 otherBaseName = otherBaseName.left(otherColon).trimmed();
             }
-            if (otherBaseName == v4l2BaseName) {
+            if (otherBaseName == baseName) {
                 if (j < i) sameNameIndex++;
                 sameNameCount++;
             }
         }
+        
+        QString displayName = baseName;
         if (sameNameCount > 1) {
             // Add index to differentiate: "AV.io SDI+ #1"
-            displayName = QString("%1 #%2").arg(v4l2BaseName).arg(sameNameIndex + 1);
+            displayName = QString("%1 #%2").arg(baseName).arg(sameNameIndex + 1);
         }
         
         // Always append the device path: "AV.io SDI+ #1 (/dev/video0)"
