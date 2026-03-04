@@ -140,8 +140,8 @@ public:
         connect(m_deviceCombo, QOverload<int>::of(&QComboBox::currentIndexChanged), 
                 this, &TestQtOnly::onDeviceChanged);
 
-        // Initial populate
-        populateDevices();
+        // Delay initial populate to let Qt event loop start
+        QTimer::singleShot(100, this, &TestQtOnly::populateDevices);
     }
 
     ~TestQtOnly() { onStop(); }
@@ -151,10 +151,15 @@ private slots:
     {
         qDebug() << "\n========== DEVICE ENUMERATION ==========";
         
-        // Get counts
-        int v4l2Count = countV4L2CaptureDevices();
+        // Get Qt devices FIRST (non-blocking)
         m_allQtDevices = QMediaDevices::videoInputs();
         int qtTotalCount = m_allQtDevices.size();
+        
+        // Process events to keep UI responsive
+        QApplication::processEvents();
+        
+        // Get V4L2 count (may be slow)
+        int v4l2Count = countV4L2CaptureDevices();
         
         qDebug() << "V4L2 capture devices:" << v4l2Count;
         qDebug() << "Qt total devices:" << qtTotalCount;
