@@ -217,3 +217,37 @@ if(APPLE)
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
     )
 endif()
+
+# Module test executable - uses actual DeviceDetector, QtCameraCapture, OptimizedVideoWidget
+add_executable(test_modules
+    test_modules.cpp
+    src/utils/DeviceDetector.cpp
+    src/capture/QtCameraCapture.cpp
+    src/widgets/OptimizedVideoWidget.cpp
+    src/core/Config.cpp
+)
+
+target_include_directories(test_modules PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(test_modules PRIVATE
+    Qt6::Widgets
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
+)
+
+# macOS-specific for test_modules
+if(APPLE)
+    target_link_libraries(test_modules PRIVATE
+        ${QT_DARWIN_CAMERA_PERMISSION_PLUGIN}
+        "-framework AVFoundation"
+    )
+    
+    set_target_properties(test_modules PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER com.test.modules
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
+    )
+endif()
