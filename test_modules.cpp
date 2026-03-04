@@ -116,14 +116,13 @@ private slots:
         qDebug() << "\n========== PLAY CLICKED ==========";
         qDebug() << "Selected combo index:" << index;
         
-        // Get device info from our detector
-        auto devices = m_deviceDetector->lastKnownDevices();
-        if (index >= devices.size()) {
+        // Get device info from our stored list
+        if (index >= m_devices.size()) {
             m_statusLabel->setText("Status: Invalid device index");
             return;
         }
 
-        const DeviceInfo& device = devices[index];
+        const DeviceInfo& device = m_devices[index];
         qDebug() << "DeviceInfo:";
         qDebug() << "  index:" << device.index;
         qDebug() << "  name:" << device.name;
@@ -179,9 +178,8 @@ private slots:
     {
         if (index < 0) return;
         
-        auto devices = m_deviceDetector->lastKnownDevices();
-        if (index < devices.size()) {
-            const DeviceInfo& dev = devices[index];
+        if (index < m_devices.size()) {
+            const DeviceInfo& dev = m_devices[index];
             QString info = QString("Device %1: %2\nPath: %3\nQt ID: %4")
                 .arg(dev.index)
                 .arg(dev.name)
@@ -196,15 +194,16 @@ private:
     {
         qDebug() << "\n========== POPULATING DEVICES ==========";
         
-        // Force a fresh detection
-        m_deviceDetector->detectDevices();
+        // Start monitoring to populate lastKnownDevices
+        m_deviceDetector->startMonitoring(5000);
         
-        auto devices = m_deviceDetector->lastKnownDevices();
+        // Also get devices directly for immediate use
+        m_devices = m_deviceDetector->detectDevices();
         
-        qDebug() << "DeviceDetector returned" << devices.size() << "devices:";
+        qDebug() << "DeviceDetector returned" << m_devices.size() << "devices:";
         
         m_deviceCombo->clear();
-        for (const DeviceInfo& dev : devices) {
+        for (const DeviceInfo& dev : m_devices) {
             QString displayText = QString("[%1] %2").arg(dev.index).arg(dev.name);
             m_deviceCombo->addItem(displayText);
             
@@ -213,12 +212,14 @@ private:
                      << "| qtId:" << dev.deviceId;
         }
         
-        if (!devices.isEmpty()) {
+        if (!m_devices.isEmpty()) {
             onDeviceChanged(0);
         }
         
         qDebug() << "========== POPULATE DONE ==========\n";
     }
+    
+    QList<DeviceInfo> m_devices;  // Store devices locally
 
     QLabel* m_infoLabel;
     QLabel* m_statusLabel;
