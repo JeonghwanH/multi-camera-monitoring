@@ -155,14 +155,29 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
         qDebug() << "";
         qDebug() << "--- Matching V4L2[" << i << "]:" << v4l2Dev.path << "card:" << v4l2Dev.card << "---";
         
-        // Count how many V4L2 devices with the same card name come before this one
+        // Extract base product name from V4L2 card (before the colon)
+        // V4L2 format: "ProductName: Description" (e.g., "AV.io SDI+: AV.io SDI+")
+        // Qt format: "ProductName (V4L2)" (e.g., "AV.io SDI+ (V4L2)")
+        QString v4l2BaseName = v4l2Dev.card;
+        int colonIdx = v4l2BaseName.indexOf(':');
+        if (colonIdx > 0) {
+            v4l2BaseName = v4l2BaseName.left(colonIdx).trimmed();
+        }
+        qDebug() << "  V4L2 base name:" << v4l2BaseName;
+        
+        // Count how many V4L2 devices with the same BASE name come before this one
         int cardInstance = 0;
         for (int j = 0; j < i; ++j) {
-            if (v4l2Devices[j].card == v4l2Dev.card) {
+            QString otherBaseName = v4l2Devices[j].card;
+            int otherColon = otherBaseName.indexOf(':');
+            if (otherColon > 0) {
+                otherBaseName = otherBaseName.left(otherColon).trimmed();
+            }
+            if (otherBaseName == v4l2BaseName) {
                 cardInstance++;
             }
         }
-        qDebug() << "  This is instance" << cardInstance << "of card:" << v4l2Dev.card;
+        qDebug() << "  This is instance" << cardInstance << "of base name:" << v4l2BaseName;
         
         // Log ALL potential Qt matches (don't break, just log)
         qDebug() << "  Checking all Qt devices for matches:";
@@ -173,11 +188,12 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
             QString qtName = qtDev.description();
             QString qtId = QString::fromUtf8(qtDev.id());
             
-            bool nameContains = qtName.contains(v4l2Dev.card);
+            // Check if Qt name contains the V4L2 base name
+            bool nameContains = qtName.contains(v4l2BaseName);
             bool isTargetInstance = (foundInstance == cardInstance);
             
             qDebug() << "    Qt[" << q << "] id:" << qtId << "name:" << qtName
-                     << "| contains:" << nameContains 
+                     << "| contains(" << v4l2BaseName << "):" << nameContains 
                      << "| instance:" << foundInstance
                      << "| target:" << cardInstance
                      << "| MATCH:" << (nameContains && isTargetInstance);
@@ -199,21 +215,27 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
         }
         
         // Build display name with device path
-        // Format: "CardName (path)" or "CardName #N (path)" for duplicates
-        QString displayName = v4l2Dev.card;
+        // Format: "BaseName (path)" or "BaseName #N (path)" for duplicates
+        // Use base name (without colon suffix) for cleaner display
+        QString displayName = v4l2BaseName;
         
-        // Check if there are other devices with the same card name
+        // Check if there are other devices with the same BASE name
         int sameNameCount = 0;
         int sameNameIndex = 0;
         for (int j = 0; j < v4l2Devices.size(); ++j) {
-            if (v4l2Devices[j].card == v4l2Dev.card) {
+            QString otherBaseName = v4l2Devices[j].card;
+            int otherColon = otherBaseName.indexOf(':');
+            if (otherColon > 0) {
+                otherBaseName = otherBaseName.left(otherColon).trimmed();
+            }
+            if (otherBaseName == v4l2BaseName) {
                 if (j < i) sameNameIndex++;
                 sameNameCount++;
             }
         }
         if (sameNameCount > 1) {
             // Add index to differentiate: "AV.io SDI+ #1"
-            displayName = QString("%1 #%2").arg(v4l2Dev.card).arg(sameNameIndex + 1);
+            displayName = QString("%1 #%2").arg(v4l2BaseName).arg(sameNameIndex + 1);
         }
         
         // Always append the device path: "AV.io SDI+ #1 (/dev/video0)"
