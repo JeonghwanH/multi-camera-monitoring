@@ -122,6 +122,21 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
     qDebug() << "DeviceDetector: Found" << v4l2Devices.size() << "unique V4L2 capture devices";
     qDebug() << "DeviceDetector: Qt reports" << qtDevices.size() << "devices";
     
+    // Log all Qt devices for reference
+    qDebug() << "=== Qt Device List ===";
+    for (int q = 0; q < qtDevices.size(); ++q) {
+        qDebug() << "  Qt[" << q << "] id:" << QString::fromUtf8(qtDevices[q].id()) 
+                 << "name:" << qtDevices[q].description();
+    }
+    qDebug() << "=== V4L2 to Qt Matching ===";
+    
+    // Log all V4L2 devices for reference
+    qDebug() << "V4L2 devices to match:";
+    for (int v = 0; v < v4l2Devices.size(); ++v) {
+        qDebug() << "  V4L2[" << v << "] path:" << v4l2Devices[v].path 
+                 << "card:" << v4l2Devices[v].card << "bus:" << v4l2Devices[v].busInfo;
+    }
+    
     for (int i = 0; i < v4l2Devices.size(); ++i) {
         const V4L2DeviceInfo& v4l2Dev = v4l2Devices[i];
         
@@ -137,6 +152,9 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
         // We need to find the Nth Qt device with matching card name, where N is how many
         // V4L2 devices with the same card name we've already seen
         
+        qDebug() << "";
+        qDebug() << "--- Matching V4L2[" << i << "]:" << v4l2Dev.path << "card:" << v4l2Dev.card << "---";
+        
         // Count how many V4L2 devices with the same card name come before this one
         int cardInstance = 0;
         for (int j = 0; j < i; ++j) {
@@ -144,24 +162,40 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
                 cardInstance++;
             }
         }
+        qDebug() << "  This is instance" << cardInstance << "of card:" << v4l2Dev.card;
         
-        // Find the (cardInstance)th Qt device with matching name
+        // Log ALL potential Qt matches (don't break, just log)
+        qDebug() << "  Checking all Qt devices for matches:";
         int foundInstance = 0;
-        for (const QCameraDevice& qtDev : qtDevices) {
+        int selectedQtIndex = -1;
+        for (int q = 0; q < qtDevices.size(); ++q) {
+            const QCameraDevice& qtDev = qtDevices[q];
             QString qtName = qtDev.description();
-            if (qtName.contains(v4l2Dev.card)) {
-                if (foundInstance == cardInstance) {
-                    info.deviceId = QString::fromUtf8(qtDev.id());
-                    qDebug() << "  Matched V4L2" << v4l2Dev.path << "(instance" << cardInstance << ")"
-                             << "to Qt device:" << qtName << "id:" << info.deviceId;
-                    break;
+            QString qtId = QString::fromUtf8(qtDev.id());
+            
+            bool nameContains = qtName.contains(v4l2Dev.card);
+            bool isTargetInstance = (foundInstance == cardInstance);
+            
+            qDebug() << "    Qt[" << q << "] id:" << qtId << "name:" << qtName
+                     << "| contains:" << nameContains 
+                     << "| instance:" << foundInstance
+                     << "| target:" << cardInstance
+                     << "| MATCH:" << (nameContains && isTargetInstance);
+            
+            if (nameContains) {
+                if (isTargetInstance && info.deviceId.isEmpty()) {
+                    // This is our match - store it but continue logging
+                    info.deviceId = qtId;
+                    selectedQtIndex = q;
                 }
                 foundInstance++;
             }
         }
         
-        if (info.deviceId.isEmpty()) {
-            qWarning() << "  WARNING: No Qt device found for V4L2" << v4l2Dev.path;
+        if (!info.deviceId.isEmpty()) {
+            qDebug() << "  >>> SELECTED: V4L2" << v4l2Dev.path << "-> Qt[" << selectedQtIndex << "] id:" << info.deviceId;
+        } else {
+            qWarning() << "  >>> WARNING: No Qt device found for V4L2" << v4l2Dev.path;
         }
         
         // Build display name with device path
