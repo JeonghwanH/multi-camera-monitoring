@@ -156,12 +156,27 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
         qDebug() << "";
         qDebug() << "--- Matching V4L2[" << i << "]:" << v4l2Dev.path << "---";
         
-        // Extract device number from path: "/dev/video0" -> "0"
+        // V4L2 and Qt have DIFFERENT ordering:
+        // V4L2 (interleaved):  0c, 0m, 1c, 1m, 2c, 2m  -> /dev/video0,1,2,3,4,5
+        // Qt (separated):      0c, 1c, 2c, 0m, 1m, 2m  -> ID "0","1","2","3","4","5"
+        //
+        // So V4L2 capture devices map to Qt:
+        //   /dev/video0 (camera 0) -> Qt ID "0"
+        //   /dev/video2 (camera 1) -> Qt ID "1"
+        //   /dev/video4 (camera 2) -> Qt ID "2"
+        //
+        // Formula: Qt ID = V4L2 device number / 2
+        
         QString targetDeviceId;
         if (v4l2Dev.path.startsWith("/dev/video")) {
-            targetDeviceId = v4l2Dev.path.mid(10);  // Get everything after "/dev/video"
+            bool ok;
+            int v4l2DeviceNum = v4l2Dev.path.mid(10).toInt(&ok);
+            if (ok) {
+                int qtDeviceId = v4l2DeviceNum / 2;  // Map to Qt's capture-first ordering
+                targetDeviceId = QString::number(qtDeviceId);
+            }
         }
-        qDebug() << "  Target Qt device ID:" << targetDeviceId;
+        qDebug() << "  V4L2 path:" << v4l2Dev.path << "-> Target Qt ID:" << targetDeviceId;
         
         // Find Qt device with matching ID
         int selectedQtIndex = -1;
