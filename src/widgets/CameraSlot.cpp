@@ -506,17 +506,23 @@ void CameraSlot::onConnectionEstablished() {
     m_connected = true;
     updateStatusLabel("", false);  // Hide status on successful connection
     
-    // Start hardware-accelerated recording if enabled (for camera sources)
+    // Delay recording start to let video surface fully initialize
+    // This prevents "Failed to start video surface due to main thread blocked"
     const auto& recordingConfig = Config::instance().recording();
     if (recordingConfig.enabled && m_currentSourceType != SourceType::Rtsp) {
-        // Use hardware-accelerated QtVideoRecorder for camera capture
         if (m_cameraCapture && m_cameraCapture->captureSession()) {
-            qDebug() << "  Starting hardware-accelerated recording...";
-            m_qtRecorder->setSession(m_cameraCapture->captureSession());
-            m_qtRecorder->startRecording(
-                recordingConfig.outputDirectory,
-                recordingConfig.chunkDurationSeconds
-            );
+            // Capture config values by copy for safe use in lambda
+            QString outputDir = recordingConfig.outputDirectory;
+            int chunkDuration = recordingConfig.chunkDurationSeconds;
+            
+            qDebug() << "  Scheduling recording start (200ms delay)...";
+            QTimer::singleShot(200, this, [this, outputDir, chunkDuration]() {
+                if (m_connected && m_cameraCapture && m_cameraCapture->captureSession()) {
+                    qDebug() << "  Starting hardware-accelerated recording for slot" << m_slotIndex;
+                    m_qtRecorder->setSession(m_cameraCapture->captureSession());
+                    m_qtRecorder->startRecording(outputDir, chunkDuration);
+                }
+            });
         }
     }
     
