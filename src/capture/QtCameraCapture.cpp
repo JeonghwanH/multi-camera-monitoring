@@ -4,6 +4,7 @@
 #include <QCameraFormat>
 #include <QGraphicsVideoItem>
 #include <QApplication>
+#include <QTimer>
 
 namespace MCM {
 
@@ -235,17 +236,18 @@ void QtCameraCapture::start() {
         qWarning() << "  WARNING: No video output set - frames won't be displayed!";
     }
     
-    // Process events to let video surface initialize before camera starts
+    // Use delayed start to let video surface fully initialize
     // This prevents "Failed to start video surface due to main thread blocked"
-    QApplication::processEvents();
+    // especially for USB capture cards like AV.io SDI+
+    QTimer::singleShot(50, this, [this]() {
+        if (m_camera) {
+            qDebug() << "  [Delayed] Calling m_camera->start() for slot" << m_slotId;
+            m_camera->start();
+            qDebug() << "  [Delayed] Camera start() called, active:" << m_camera->isActive();
+        }
+    });
     
-    qDebug() << "  Calling m_camera->start()...";
-    m_camera->start();
-    
-    // Process events again to let camera initialization complete
-    QApplication::processEvents();
-    
-    qDebug() << "  Camera start() called, active:" << m_camera->isActive();
+    qDebug() << "  Camera start scheduled (50ms delay)";
 }
 
 void QtCameraCapture::stop() {
