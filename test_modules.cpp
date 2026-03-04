@@ -151,8 +151,9 @@ private slots:
 
         m_statusLabel->setText("Status: Starting camera...");
         
-        // Set device index FIRST (this creates new session)
-        m_cameraCapture->setDeviceIndex(device.index);
+        // Use setCameraDevice with the MAPPED device (same as CameraSlot does)
+        // This uses our V4L2->Qt mapping from DeviceDetector
+        m_cameraCapture->setCameraDevice(qtDevice);
         
         // THEN set video output on the new session
         QGraphicsVideoItem* videoItem = m_videoWidget->videoItem();
