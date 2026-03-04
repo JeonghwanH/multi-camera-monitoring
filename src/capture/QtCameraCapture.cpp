@@ -3,8 +3,6 @@
 #include <QDebug>
 #include <QCameraFormat>
 #include <QGraphicsVideoItem>
-#include <QApplication>
-#include <QTimer>
 
 namespace MCM {
 
@@ -75,40 +73,30 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
     qDebug() << "=== QtCameraCapture::setupCamera START ===" << "slot" << m_slotId;
     qDebug() << "  Device:" << device.description() << "ID:" << device.id();
     
-    // Don't store old video output - we always get a fresh one from CameraSlot
-    // after resetVideoItem() creates a new QGraphicsVideoItem
-    qDebug() << "  Clearing stored video output (will be set fresh)";
-    m_videoOutput = nullptr;
+    // Store video output to restore after camera swap (like test_qt_only approach)
+    QObject* savedVideoOutput = m_videoOutput;
     
-    // Full cleanup - delete camera and session
+    // Stop and delete old camera only (KEEP the session - this is key!)
     if (m_camera) {
         qDebug() << "  Stopping and deleting old camera...";
-        // Disconnect signals first to avoid callbacks during destruction
         disconnect(m_camera, nullptr, this, nullptr);
         if (m_camera->isActive()) {
             m_camera->stop();
         }
+        m_session->setCamera(nullptr);  // Disconnect from session before delete
         delete m_camera;
         m_camera = nullptr;
-    }
-    if (m_session) {
-        // IMPORTANT: Disconnect video output BEFORE deleting session
-        // This prevents QGraphicsVideoItem from getting into an inconsistent state
-        qDebug() << "  Clearing video output from old session...";
-        m_session->setVideoOutput(nullptr);
-        qDebug() << "  Deleting old session...";
-        delete m_session;
-        m_session = nullptr;
     }
     
     // Reset connected state for clean start
     m_connected = false;
     
-    qDebug() << "  Creating NEW session and camera for slot" << m_slotId;
-    
-    // Create FRESH session (identical to constructor)
-    m_session = new QMediaCaptureSession(this);
-    qDebug() << "  NEW session created:" << m_session;
+    // Reuse existing session or create if needed (first time)
+    if (!m_session) {
+        qDebug() << "  Creating session for slot" << m_slotId;
+        m_session = new QMediaCaptureSession(this);
+    }
+    qDebug() << "  Using session:" << m_session;
     
     // Create new camera
     m_camera = new QCamera(device, this);
@@ -123,8 +111,6 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
     // Set camera to capture session
     m_session->setCamera(m_camera);
     qDebug() << "  Camera set to session";
-    qDebug() << "  Video output will be set later via setVideoOutput()";
-    qDebug() << "  Frame access will be connected to video item's sink";
     
     // Configure camera format (prefer 720p @ 30fps for performance)
     auto formats = device.videoFormats();
@@ -135,19 +121,14 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
         QSize res = format.resolution();
         float fps = format.maxFrameRate();
         
-        // Score based on: prefer 720p, then 1080p, then others
-        // Also prefer 30fps
         int score = 0;
-        
         if (res.height() == 720) {
-            score += 1000;  // Prefer 720p (good balance)
+            score += 1000;
         } else if (res.height() == 1080) {
-            score += 500;   // 1080p is okay too
+            score += 500;
         } else if (res.height() >= 480 && res.height() <= 1080) {
-            score += 100;   // Acceptable range
+            score += 100;
         }
-        
-        // Prefer ~30 fps
         if (fps >= 25 && fps <= 35) {
             score += 100;
         }
@@ -162,13 +143,14 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
         m_camera->setCameraFormat(bestFormat);
         qDebug() << "  Selected format:" << bestFormat.resolution() 
                  << "@" << bestFormat.maxFrameRate() << "fps";
-    } else {
-        qDebug() << "  WARNING: No suitable format found, using default";
     }
     
-    // Process events to let internal pipelines initialize
-    // This is crucial for USB capture devices that take longer to start
-    QApplication::processEvents();
+    // Restore video output if it was set (like test_qt_only does)
+    if (savedVideoOutput) {
+        m_session->setVideoOutput(savedVideoOutput);
+        m_videoOutput = savedVideoOutput;
+        qDebug() << "  Restored video output:" << savedVideoOutput;
+    }
     
     qDebug() << "=== QtCameraCapture::setupCamera END ===" << "slot" << m_slotId;
 }
@@ -236,18 +218,10 @@ void QtCameraCapture::start() {
         qWarning() << "  WARNING: No video output set - frames won't be displayed!";
     }
     
-    // Use delayed start to let video surface fully initialize
-    // This prevents "Failed to start video surface due to main thread blocked"
-    // especially for USB capture cards like AV.io SDI+
-    QTimer::singleShot(50, this, [this]() {
-        if (m_camera) {
-            qDebug() << "  [Delayed] Calling m_camera->start() for slot" << m_slotId;
-            m_camera->start();
-            qDebug() << "  [Delayed] Camera start() called, active:" << m_camera->isActive();
-        }
-    });
-    
-    qDebug() << "  Camera start scheduled (50ms delay)";
+    // Start immediately like test_qt_only does
+    qDebug() << "  Calling m_camera->start()...";
+    m_camera->start();
+    qDebug() << "  Camera start() called, active:" << m_camera->isActive();
 }
 
 void QtCameraCapture::stop() {
