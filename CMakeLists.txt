@@ -276,3 +276,27 @@ if(APPLE)
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
     )
 endif()
+
+# Test Qt-only with V4L2 verification
+add_executable(test_qt_only
+    test_qt_only.cpp
+)
+
+target_link_libraries(test_qt_only PRIVATE
+    Qt6::Widgets
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
+)
+
+if(APPLE)
+    target_link_libraries(test_qt_only PRIVATE
+        ${QT_DARWIN_CAMERA_PERMISSION_PLUGIN}
+        "-framework AVFoundation"
+    )
+    
+    set_target_properties(test_qt_only PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER com.test.qtonly
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
+    )
+endif()
