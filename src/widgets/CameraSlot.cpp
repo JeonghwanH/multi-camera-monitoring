@@ -14,6 +14,7 @@
 #include <QMouseEvent>
 #include <QResizeEvent>
 #include <QDebug>
+#include <QApplication>
 #include <cstdlib>
 
 namespace MCM {
@@ -448,6 +449,13 @@ void CameraSlot::startStream() {
         m_cameraCapture->setCameraDevice(cameraDevice);  // Configure device first
         qDebug() << "  Device configured, now setting video output...";
         m_cameraCapture->setVideoOutput(videoItem);  // Set AFTER device
+        
+        // Process events to let video surface initialize
+        // This prevents "Failed to start video surface due to main thread blocked"
+        // especially for slower USB capture devices like AV.io SDI+
+        qDebug() << "  Processing events before camera start...";
+        QApplication::processEvents();
+        
         qDebug() << "  Video output set, now calling start()...";
         m_cameraCapture->start();
         qDebug() << "  Camera start() called";

@@ -62,9 +62,17 @@ void QtVideoRecorder::configureRecorder(QMediaRecorder* recorder) {
     // Use MP4 container
     format.setFileFormat(QMediaFormat::MPEG4);
     
+#ifdef Q_OS_LINUX
+    // On Linux/GStreamer, let the system negotiate codec
+    // This avoids "stream error: no more input formats" for capture cards
+    // that output unusual pixel formats
+    format.setVideoCodec(QMediaFormat::VideoCodec::Unspecified);
+    qDebug() << "QtVideoRecorder: Using Unspecified codec (Linux/GStreamer negotiation)";
+#else
     // Use H.264 codec - hardware accelerated on most platforms
     // VideoToolbox on macOS, NVENC on NVIDIA, QSV on Intel
     format.setVideoCodec(QMediaFormat::VideoCodec::H264);
+#endif
     
     // Explicitly disable audio - set to Unspecified to avoid microphone access
     format.setAudioCodec(QMediaFormat::AudioCodec::Unspecified);
@@ -77,7 +85,7 @@ void QtVideoRecorder::configureRecorder(QMediaRecorder* recorder) {
     // Use average bit rate encoding - more widely supported than constant quality
     recorder->setEncodingMode(QMediaRecorder::AverageBitRateEncoding);
     recorder->setVideoBitRate(4000000);  // 4 Mbps - good quality for 720p/1080p
-    recorder->setVideoFrameRate(30);
+    recorder->setVideoFrameRate(0);  // 0 = use source frame rate (better for capture cards)
 }
 
 QMediaRecorder* QtVideoRecorder::getStandbyRecorder() const {
@@ -269,7 +277,10 @@ void QtVideoRecorder::onRecorderStateChanged(QMediaRecorder::RecorderState state
     QString stateStr;
     switch (state) {
         case QMediaRecorder::StoppedState: stateStr = "Stopped"; break;
-        case QMediaRecorder::RecordingState: stateStr = "Recording"; break;
+        case QMediaRecorder::RecordingState: 
+            stateStr = "Recording"; 
+            m_consecutiveErrors = 0;  // Reset error count on successful recording
+            break;
         case QMediaRecorder::PausedState: stateStr = "Paused"; break;
     }
     qDebug() << "QtVideoRecorder: State changed to" << stateStr << "for slot" << m_slotId;
@@ -287,6 +298,15 @@ void QtVideoRecorder::onRecorderErrorOccurred(QMediaRecorder::Error error, const
     
     qWarning() << "QtVideoRecorder: Error" << errorType << "-" << errorString 
                << "for slot" << m_slotId;
+    
+    // Track consecutive errors - if too many, stop trying to record
+    m_consecutiveErrors++;
+    if (m_consecutiveErrors >= 3) {
+        qWarning() << "QtVideoRecorder: Too many consecutive errors for slot" << m_slotId 
+                   << "- disabling recording for this session";
+        m_recording = false;
+        m_chunkTimer->stop();
+    }
     
     emit errorOccurred(errorString);
 }

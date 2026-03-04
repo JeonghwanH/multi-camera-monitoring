@@ -3,6 +3,7 @@
 #include <QDebug>
 #include <QCameraFormat>
 #include <QGraphicsVideoItem>
+#include <QApplication>
 
 namespace MCM {
 
@@ -164,6 +165,10 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
         qDebug() << "  WARNING: No suitable format found, using default";
     }
     
+    // Process events to let internal pipelines initialize
+    // This is crucial for USB capture devices that take longer to start
+    QApplication::processEvents();
+    
     qDebug() << "=== QtCameraCapture::setupCamera END ===" << "slot" << m_slotId;
 }
 
@@ -230,8 +235,16 @@ void QtCameraCapture::start() {
         qWarning() << "  WARNING: No video output set - frames won't be displayed!";
     }
     
+    // Process events to let video surface initialize before camera starts
+    // This prevents "Failed to start video surface due to main thread blocked"
+    QApplication::processEvents();
+    
     qDebug() << "  Calling m_camera->start()...";
     m_camera->start();
+    
+    // Process events again to let camera initialization complete
+    QApplication::processEvents();
+    
     qDebug() << "  Camera start() called, active:" << m_camera->isActive();
 }
 

@@ -1,0 +1,1323 @@
+========================================
+  Multi-Camera Monitor
+========================================
+
+[*] Starting application...
+[*] Executable: build/multi-camera-monitor
+
+Config loaded from: "config.json"
+OptimizedVideoWidget: Created QGraphicsVideoItem QGraphicsVideoItem(0x5dce0a6b8130, pos=0,0)
+OptimizedVideoWidget: Connected nativeSizeChanged signal
+=== QtRtspCapture::Constructor === slot 0
+  QMediaPlayer created: QMediaPlayer(0x5dce0ade0e40)
+  QtRtspCapture initialized
+QtVideoRecorder: Creating double-buffered recorder for slot 0
+OptimizedVideoWidget: Created QGraphicsVideoItem QGraphicsVideoItem(0x5dce0ae1fc40, pos=0,0)
+OptimizedVideoWidget: Connected nativeSizeChanged signal
+=== QtRtspCapture::Constructor === slot 1
+  QMediaPlayer created: QMediaPlayer(0x5dce0ae3ff90)
+  QtRtspCapture initialized
+QtVideoRecorder: Creating double-buffered recorder for slot 1
+OptimizedVideoWidget: Created QGraphicsVideoItem QGraphicsVideoItem(0x5dce0ae4cce0, pos=0,0)
+OptimizedVideoWidget: Connected nativeSizeChanged signal
+=== QtRtspCapture::Constructor === slot 2
+  QMediaPlayer created: QMediaPlayer(0x5dce0ae78830)
+  QtRtspCapture initialized
+QtVideoRecorder: Creating double-buffered recorder for slot 2
+OptimizedVideoWidget: Created QGraphicsVideoItem QGraphicsVideoItem(0x5dce0ae7f520, pos=0,0)
+OptimizedVideoWidget: Connected nativeSizeChanged signal
+=== QtRtspCapture::Constructor === slot 3
+  QMediaPlayer created: QMediaPlayer(0x5dce0aeb2970)
+  QtRtspCapture initialized
+QtVideoRecorder: Creating double-buffered recorder for slot 3
+MonitoringScreen: Created 4 slots in 2 x 2 grid
+########## CameraSlot 0 stopStream() ##########
+  m_streaming: false m_currentSourceType: 0
+  Not streaming, returning early
+########## CameraSlot 1 stopStream() ##########
+  m_streaming: false m_currentSourceType: 0
+  Not streaming, returning early
+########## CameraSlot 2 stopStream() ##########
+  m_streaming: false m_currentSourceType: 0
+  Not streaming, returning early
+########## CameraSlot 3 stopStream() ##########
+  m_streaming: false m_currentSourceType: 0
+  Not streaming, returning early
+MonitoringScreen: Stopped all streams
+DeviceDetector: Starting monitoring with 5000 ms interval
+Multi-Camera Monitor started
+Grid: 4 slots ( 2 x 2 )
+Buffer: 30 frames, min 10
+Recording: enabled - Chunk: 10 s
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+
+========== SOURCE CHANGE TRIGGERED ==========
+CameraSlot 0 source selector changed to index 3
+  Selected: type= 2 source= "1" display= "Wired 1: HP True Vision FHD Camera #1"
+  Saving to config...
+  Current m_streaming: false
+  >>> STARTING new stream <<<
+########## CameraSlot 0 startStream() ##########
+  m_streaming: false
+  Config - type: 2 source: "1"
+  Resetting video item for clean state...
+OptimizedVideoWidget::resetVideoItem() - creating fresh video item
+  Old videoItem: QGraphicsVideoItem(0x5dce0a6b8130, pos=0,0)
+  New videoItem: QGraphicsVideoItem(0x5dce0adb90f0, pos=0,0)
+  VideoWidget videoItem: QGraphicsVideoItem(0x5dce0adb90f0, pos=0,0)
+  VideoItem size: QSizeF(320, 240)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  >>> Starting Camera pipeline <<<
+  Device index (filtered): 1
+DeviceDetector::cameraDeviceByIndex( 1 ) -> Qt[ 1 ]
+  Found: "HP True Vision FHD Camera (V4L2)"
+  Resolved to device: "HP True Vision FHD Camera (V4L2)" id: "1"
+=== QtCameraCapture::setupCamera START === slot 0
+  Device: "HP True Vision FHD Camera (V4L2)" ID: "1"
+  Clearing stored video output (will be set fresh)
+  Clearing video output from old session...
+  Deleting old session...
+  Creating NEW session and camera for slot 0
+  NEW session created: QMediaCaptureSession(0x5dce0a9b1650)
+  NEW camera created: QCamera(0x5dce0adcdbc0)
+  Camera set to session
+  Video output will be set later via setVideoOutput()
+  Frame access will be connected to video item's sink
+  Selected format: QSize(1280, 720) @ 30 fps
+=== QtCameraCapture::setupCamera END === slot 0
+  Device configured, now setting video output...
+QtCameraCapture::setVideoOutput slot 0 videoOutput: QGraphicsVideoItem(0x5dce0adb90f0) session: QMediaCaptureSession(0x5dce0a9b1650)
+  Video output SET on session
+  Connected to video item's sink for frame access
+  Video output set, now calling start()...
+=== QtCameraCapture::start === slot 0
+  Camera: QCamera(0x5dce0adcdbc0) Session: QMediaCaptureSession(0x5dce0a9b1650) VideoOutput: QGraphicsVideoItem(0x5dce0adb90f0)
+  Calling m_camera->start()...
+*** QtCameraCapture::onCameraActiveChanged *** slot 0 active: true was_connected: false
+  Emitting connectionEstablished signal
+*** CameraSlot 0 onConnectionEstablished() ***
+  VideoItem: QGraphicsVideoItem(0x5dce0adb90f0, pos=0,0)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  Starting hardware-accelerated recording...
+QtVideoRecorder: Session set for slot 0 (recorder will be attached on first chunk)
+=== QtVideoRecorder::startRecording === slot 0
+  Output dir (input): "recordings"
+  Chunk duration: 10 seconds
+  Output dir (absolute): "/home/onj/weldbeing-v-multicamera-monitoring/recordings"
+  Slot directory created: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0"
+QtVideoRecorder::rotateChunk (double-buffer) slot 0
+  Double-buffer swap: old= 0x0 new= 0x5dce0adf7ea0
+  Starting chunk 1 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/001_20260304_153513.mp4"
+Failed to start video surface due to main thread blocked.
+QtVideoRecorder: State changed to "Recording" for slot 0
+CameraSlot 0 recording chunk 1 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/001_20260304_153513.mp4"
+QtVideoRecorder: Recording started for slot 0
+  Status label hidden, connection complete
+  Camera start() called, active: true
+  Camera start() called
+########## CameraSlot 0 startStream() DONE ##########
+========== SOURCE CHANGE COMPLETE ==========
+
+
+========== SOURCE CHANGE TRIGGERED ==========
+CameraSlot 1 source selector changed to index 1
+  Selected: type= 1 source= "1" display= "Auto (Device 1)"
+  Saving to config...
+  Current m_streaming: false
+  >>> STARTING new stream <<<
+########## CameraSlot 1 startStream() ##########
+  m_streaming: false
+  Config - type: 1 source: "1"
+  Resetting video item for clean state...
+OptimizedVideoWidget::resetVideoItem() - creating fresh video item
+  Old videoItem: QGraphicsVideoItem(0x5dce0ae1fc40, pos=0,0)
+  New videoItem: QGraphicsVideoItem(0x5dce0ae25a50, pos=0,0)
+  VideoWidget videoItem: QGraphicsVideoItem(0x5dce0ae25a50, pos=0,0)
+  VideoItem size: QSizeF(320, 240)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  >>> Starting Camera pipeline <<<
+  Device index (filtered): 1
+DeviceDetector::cameraDeviceByIndex( 1 ) -> Qt[ 1 ]
+  Found: "HP True Vision FHD Camera (V4L2)"
+  Resolved to device: "HP True Vision FHD Camera (V4L2)" id: "1"
+=== QtCameraCapture::setupCamera START === slot 1
+  Device: "HP True Vision FHD Camera (V4L2)" ID: "1"
+  Clearing stored video output (will be set fresh)
+  Clearing video output from old session...
+  Deleting old session...
+  Creating NEW session and camera for slot 1
+  NEW session created: QMediaCaptureSession(0x5dce0ae31d80)
+  NEW camera created: QCamera(0x5dce0ae24c90)
+  Camera set to session
+  Video output will be set later via setVideoOutput()
+  Frame access will be connected to video item's sink
+  Selected format: QSize(1280, 720) @ 30 fps
+=== QtCameraCapture::setupCamera END === slot 1
+  Device configured, now setting video output...
+QtCameraCapture::setVideoOutput slot 1 videoOutput: QGraphicsVideoItem(0x5dce0ae25a50) session: QMediaCaptureSession(0x5dce0ae31d80)
+  Video output SET on session
+  Connected to video item's sink for frame access
+  Video output set, now calling start()...
+=== QtCameraCapture::start === slot 1
+  Camera: QCamera(0x5dce0ae24c90) Session: QMediaCaptureSession(0x5dce0ae31d80) VideoOutput: QGraphicsVideoItem(0x5dce0ae25a50)
+  Calling m_camera->start()...
+*** QtCameraCapture::onCameraActiveChanged *** slot 1 active: true was_connected: false
+  Emitting connectionEstablished signal
+*** CameraSlot 1 onConnectionEstablished() ***
+  VideoItem: QGraphicsVideoItem(0x5dce0ae25a50, pos=0,0)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  Starting hardware-accelerated recording...
+QtVideoRecorder: Session set for slot 1 (recorder will be attached on first chunk)
+=== QtVideoRecorder::startRecording === slot 1
+  Output dir (input): "recordings"
+  Chunk duration: 10 seconds
+  Output dir (absolute): "/home/onj/weldbeing-v-multicamera-monitoring/recordings"
+  Slot directory created: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1"
+QtVideoRecorder::rotateChunk (double-buffer) slot 1
+  Double-buffer swap: old= 0x0 new= 0x5dce0ae44070
+  Starting chunk 1 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/001_20260304_153515.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 1
+CameraSlot 1 recording chunk 1 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/001_20260304_153515.mp4"
+QtVideoRecorder: Recording started for slot 1
+  Status label hidden, connection complete
+  Camera start() called, active: true
+  Camera start() called
+########## CameraSlot 1 startStream() DONE ##########
+========== SOURCE CHANGE COMPLETE ==========
+
+
+========== SOURCE CHANGE TRIGGERED ==========
+CameraSlot 2 source selector changed to index 4
+  Selected: type= 2 source= "2" display= "Wired 2: HP True Vision FHD Camera #2"
+  Saving to config...
+  Current m_streaming: false
+  >>> STARTING new stream <<<
+########## CameraSlot 2 startStream() ##########
+  m_streaming: false
+  Config - type: 2 source: "2"
+  Resetting video item for clean state...
+OptimizedVideoWidget::resetVideoItem() - creating fresh video item
+  Old videoItem: QGraphicsVideoItem(0x5dce0ae4cce0, pos=0,0)
+  New videoItem: QGraphicsVideoItem(0x5dce0ae49010, pos=0,0)
+  VideoWidget videoItem: QGraphicsVideoItem(0x5dce0ae49010, pos=0,0)
+  VideoItem size: QSizeF(320, 240)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  >>> Starting Camera pipeline <<<
+  Device index (filtered): 2
+DeviceDetector::cameraDeviceByIndex( 2 ) -> Qt[ 2 ]
+  Found: "HP True Vision FHD Camera (V4L2)"
+  Resolved to device: "HP True Vision FHD Camera (V4L2)" id: "2"
+=== QtCameraCapture::setupCamera START === slot 2
+  Device: "HP True Vision FHD Camera (V4L2)" ID: "2"
+  Clearing stored video output (will be set fresh)
+  Clearing video output from old session...
+  Deleting old session...
+  Creating NEW session and camera for slot 2
+  NEW session created: QMediaCaptureSession(0x5dce0ae6a940)
+  NEW camera created: QCamera(0x5dce0ae6bd50)
+  Camera set to session
+  Video output will be set later via setVideoOutput()
+  Frame access will be connected to video item's sink
+  Selected format: QSize(400, 400) @ 15 fps
+=== QtCameraCapture::setupCamera END === slot 2
+  Device configured, now setting video output...
+QtCameraCapture::setVideoOutput slot 2 videoOutput: QGraphicsVideoItem(0x5dce0ae49010) session: QMediaCaptureSession(0x5dce0ae6a940)
+  Video output SET on session
+  Connected to video item's sink for frame access
+  Video output set, now calling start()...
+=== QtCameraCapture::start === slot 2
+  Camera: QCamera(0x5dce0ae6bd50) Session: QMediaCaptureSession(0x5dce0ae6a940) VideoOutput: QGraphicsVideoItem(0x5dce0ae49010)
+  Calling m_camera->start()...
+*** QtCameraCapture::onCameraActiveChanged *** slot 2 active: true was_connected: false
+  Emitting connectionEstablished signal
+*** CameraSlot 2 onConnectionEstablished() ***
+  VideoItem: QGraphicsVideoItem(0x5dce0ae49010, pos=0,0)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  Starting hardware-accelerated recording...
+QtVideoRecorder: Session set for slot 2 (recorder will be attached on first chunk)
+=== QtVideoRecorder::startRecording === slot 2
+  Output dir (input): "recordings"
+  Chunk duration: 10 seconds
+  Output dir (absolute): "/home/onj/weldbeing-v-multicamera-monitoring/recordings"
+  Slot directory created: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2"
+QtVideoRecorder::rotateChunk (double-buffer) slot 2
+  Double-buffer swap: old= 0x0 new= 0x5dce0ae7c910
+  Starting chunk 1 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/001_20260304_153515.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 2
+CameraSlot 2 recording chunk 1 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/001_20260304_153515.mp4"
+QtVideoRecorder: Recording started for slot 2
+  Status label hidden, connection complete
+  Camera start() called, active: true
+  Camera start() called
+########## CameraSlot 2 startStream() DONE ##########
+========== SOURCE CHANGE COMPLETE ==========
+
+
+========== SOURCE CHANGE TRIGGERED ==========
+CameraSlot 3 source selector changed to index 5
+  Selected: type= 2 source= "3" display= "Wired 3: AV.io SDI+ #2"
+  Saving to config...
+  Current m_streaming: false
+  >>> STARTING new stream <<<
+########## CameraSlot 3 startStream() ##########
+  m_streaming: false
+  Config - type: 2 source: "3"
+  Resetting video item for clean state...
+OptimizedVideoWidget::resetVideoItem() - creating fresh video item
+  Old videoItem: QGraphicsVideoItem(0x5dce0ae7f520, pos=0,0)
+  New videoItem: QGraphicsVideoItem(0x5dce0ae87f70, pos=0,0)
+  VideoWidget videoItem: QGraphicsVideoItem(0x5dce0ae87f70, pos=0,0)
+  VideoItem size: QSizeF(320, 240)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  >>> Starting Camera pipeline <<<
+  Device index (filtered): 3
+DeviceDetector::cameraDeviceByIndex( 3 ) -> Qt[ 3 ]
+  Found: "AV.io SDI+ (V4L2)"
+  Resolved to device: "AV.io SDI+ (V4L2)" id: "3"
+=== QtCameraCapture::setupCamera START === slot 3
+  Device: "AV.io SDI+ (V4L2)" ID: "3"
+  Clearing stored video output (will be set fresh)
+  Clearing video output from old session...
+  Deleting old session...
+  Creating NEW session and camera for slot 3
+  NEW session created: QMediaCaptureSession(0x5dce0aea4ad0)
+  NEW camera created: QCamera(0x5dce0aea5af0)
+Failed to start video surface due to main thread blocked.
+Failed to start video surface due to main thread blocked.
+  Camera set to session
+  Video output will be set later via setVideoOutput()
+  Frame access will be connected to video item's sink
+  Selected format: QSize(1280, 720) @ 20 fps
+=== QtCameraCapture::setupCamera END === slot 3
+  Device configured, now setting video output...
+QtCameraCapture::setVideoOutput slot 3 videoOutput: QGraphicsVideoItem(0x5dce0ae87f70) session: QMediaCaptureSession(0x5dce0aea4ad0)
+  Video output SET on session
+  Connected to video item's sink for frame access
+  Video output set, now calling start()...
+=== QtCameraCapture::start === slot 3
+  Camera: QCamera(0x5dce0aea5af0) Session: QMediaCaptureSession(0x5dce0aea4ad0) VideoOutput: QGraphicsVideoItem(0x5dce0ae87f70)
+  Calling m_camera->start()...
+*** QtCameraCapture::onCameraActiveChanged *** slot 3 active: true was_connected: false
+  Emitting connectionEstablished signal
+*** CameraSlot 3 onConnectionEstablished() ***
+  VideoItem: QGraphicsVideoItem(0x5dce0ae87f70, pos=0,0)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  Starting hardware-accelerated recording...
+QtVideoRecorder: Session set for slot 3 (recorder will be attached on first chunk)
+=== QtVideoRecorder::startRecording === slot 3
+  Output dir (input): "recordings"
+  Chunk duration: 10 seconds
+  Output dir (absolute): "/home/onj/weldbeing-v-multicamera-monitoring/recordings"
+  Slot directory created: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3"
+QtVideoRecorder::rotateChunk (double-buffer) slot 3
+  Double-buffer swap: old= 0x0 new= 0x5dce0aead620
+  Starting chunk 1 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/001_20260304_153516.mp4"
+Failed to start video surface due to main thread blocked.
+QtVideoRecorder: State changed to "Recording" for slot 3
+CameraSlot 3 recording chunk 1 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/001_20260304_153516.mp4"
+QtVideoRecorder: Recording started for slot 3
+  Status label hidden, connection complete
+  Camera start() called, active: true
+  Camera start() called
+########## CameraSlot 3 startStream() DONE ##########
+========== SOURCE CHANGE COMPLETE ==========
+
+DeviceDetector: Initial detection complete - 4 capture devices
+########## CameraSlot 0 startStream() ##########
+  m_streaming: true
+  Already streaming, returning early
+########## CameraSlot 1 startStream() ##########
+  m_streaming: true
+  Already streaming, returning early
+########## CameraSlot 2 startStream() ##########
+  m_streaming: true
+  Already streaming, returning early
+########## CameraSlot 3 startStream() ##########
+  m_streaming: true
+  Already streaming, returning early
+MonitoringScreen: Started all streams
+*** OptimizedVideoWidget::onNativeSizeChanged *** QSizeF(400, 400)
+  VideoItem: QGraphicsVideoItem(0x5dce0ae49010, pos=0,0) previous nativeSize: QSizeF(-1, -1)
+QtCameraCapture::onVideoFrameChanged slot 2 frame# 0 valid: true size: QSize(400, 400)
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:17.104: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:17.104: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:17.104: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+QtCameraCapture::onVideoFrameChanged slot 2 frame# 1 valid: true size: QSize(400, 400)
+QtCameraCapture::onVideoFrameChanged slot 2 frame# 2 valid: true size: QSize(400, 400)
+QtCameraCapture::onVideoFrameChanged slot 2 frame# 3 valid: true size: QSize(400, 400)
+QtCameraCapture::onVideoFrameChanged slot 2 frame# 4 valid: true size: QSize(400, 400)
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:17.472: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:17.472: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+QtVideoRecorder: Error "ResourceError" - "stream error: no more input formats" for slot 3
+CameraSlot 3 recording error: "stream error: no more input formats"
+QtVideoRecorder: State changed to "Stopped" for slot 3
+QtVideoRecorder: Error "ResourceError" - "Internal data stream error." for slot 3
+CameraSlot 3 recording error: "Internal data stream error."
+*** OptimizedVideoWidget::onNativeSizeChanged *** QSizeF(1280, 720)
+  VideoItem: QGraphicsVideoItem(0x5dce0ae25a50, pos=0,0) previous nativeSize: QSizeF(-1, -1)
+*** OptimizedVideoWidget::onNativeSizeChanged *** QSizeF(1280, 720)
+  VideoItem: QGraphicsVideoItem(0x5dce0adb90f0, pos=0,0) previous nativeSize: QSizeF(-1, -1)
+
+========== SOURCE CHANGE TRIGGERED ==========
+CameraSlot 0 source selector changed to index 2
+  Selected: type= 2 source= "0" display= "Wired 0: AV.io SDI+ #1"
+  Saving to config...
+  Current m_streaming: true
+  >>> STOPPING current stream <<<
+########## CameraSlot 0 stopStream() ##########
+  m_streaming: true m_currentSourceType: 2
+  Stopping camera capture...
+  m_cameraCapture: MCM::QtCameraCapture(0x5dce0adccc30) isActive: true
+=== QtCameraCapture::stop === slot 0
+  Camera: QCamera(0x5dce0adcdbc0) active: true
+  Stopping camera...
+*** QtCameraCapture::onCameraActiveChanged *** slot 0 active: false was_connected: true
+  Emitting connectionLost signal
+*** CameraSlot 0 onConnectionLost() ***
+OptimizedVideoWidget::clear() - resetting video item
+=== QtVideoRecorder::stopRecording === slot 0
+CameraSlot 0 recording chunk 1 completed: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/001_20260304_153513.mp4"
+QtVideoRecorder: Recording stopped for slot 0
+  Display cleared, showing No Signal
+  Clearing video output from session...
+  Stop complete
+  Clearing video widget...
+OptimizedVideoWidget::clear() - resetting video item
+########## CameraSlot 0 stopStream() DONE ##########
+  >>> STARTING new stream <<<
+########## CameraSlot 0 startStream() ##########
+  m_streaming: false
+  Config - type: 2 source: "0"
+  Resetting video item for clean state...
+OptimizedVideoWidget::resetVideoItem() - creating fresh video item
+  Old videoItem: QGraphicsVideoItem(0x5dce0adb90f0, pos=71.8333,0)
+  New videoItem: QGraphicsVideoItem(0x5dce0b9b4d70, pos=0,0)
+  VideoWidget videoItem: QGraphicsVideoItem(0x5dce0b9b4d70, pos=0,0)
+  VideoItem size: QSizeF(320, 240)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  >>> Starting Camera pipeline <<<
+  Device index (filtered): 0
+DeviceDetector::cameraDeviceByIndex( 0 ) -> Qt[ 0 ]
+  Found: "AV.io SDI+ (V4L2)"
+  Resolved to device: "AV.io SDI+ (V4L2)" id: "0"
+=== QtCameraCapture::setupCamera START === slot 0
+  Device: "AV.io SDI+ (V4L2)" ID: "0"
+  Clearing stored video output (will be set fresh)
+  Stopping and deleting old camera...
+  Clearing video output from old session...
+  Deleting old session...
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:21.586: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+QtVideoRecorder: State changed to "Stopped" for slot 0
+  Creating NEW session and camera for slot 0
+  NEW session created: QMediaCaptureSession(0x7a1c84a23210)
+  NEW camera created: QCamera(0x5dce0b82d350)
+  Camera set to session
+  Video output will be set later via setVideoOutput()
+  Frame access will be connected to video item's sink
+  Selected format: QSize(1280, 720) @ 20 fps
+=== QtCameraCapture::setupCamera END === slot 0
+  Device configured, now setting video output...
+QtCameraCapture::setVideoOutput slot 0 videoOutput: QGraphicsVideoItem(0x5dce0b9b4d70) session: QMediaCaptureSession(0x7a1c84a23210)
+  Video output SET on session
+  Connected to video item's sink for frame access
+  Video output set, now calling start()...
+=== QtCameraCapture::start === slot 0
+  Camera: QCamera(0x5dce0b82d350) Session: QMediaCaptureSession(0x7a1c84a23210) VideoOutput: QGraphicsVideoItem(0x5dce0b9b4d70)
+  Calling m_camera->start()...
+*** QtCameraCapture::onCameraActiveChanged *** slot 0 active: true was_connected: false
+  Emitting connectionEstablished signal
+*** CameraSlot 0 onConnectionEstablished() ***
+  VideoItem: QGraphicsVideoItem(0x5dce0b9b4d70, pos=0,0)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  Starting hardware-accelerated recording...
+QtVideoRecorder: Session set for slot 0 (recorder will be attached on first chunk)
+=== QtVideoRecorder::startRecording === slot 0
+  Output dir (input): "recordings"
+  Chunk duration: 10 seconds
+  Output dir (absolute): "/home/onj/weldbeing-v-multicamera-monitoring/recordings"
+  Slot directory created: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0"
+QtVideoRecorder::rotateChunk (double-buffer) slot 0
+  Double-buffer swap: old= 0x0 new= 0x5dce0adf7ea0
+  Starting chunk 1 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/001_20260304_153522.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 0
+CameraSlot 0 recording chunk 1 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/001_20260304_153522.mp4"
+QtVideoRecorder: Recording started for slot 0
+  Status label hidden, connection complete
+  Camera start() called, active: true
+  Camera start() called
+########## CameraSlot 0 startStream() DONE ##########
+========== SOURCE CHANGE COMPLETE ==========
+
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:23.289: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+QtVideoRecorder: Error "ResourceError" - "stream error: no more input formats" for slot 0
+CameraSlot 0 recording error: "stream error: no more input formats"
+QtVideoRecorder: State changed to "Stopped" for slot 0
+QtVideoRecorder: Error "ResourceError" - "Internal data stream error." for slot 0
+CameraSlot 0 recording error: "Internal data stream error."
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 1
+  Double-buffer swap: old= 0x5dce0ae44070 new= 0x5dce0ae4b320
+  Starting chunk 2 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/002_20260304_153525.mp4"
+QtVideoRecorder: State changed to "Stopped" for slot 1
+QtVideoRecorder: State changed to "Recording" for slot 1
+CameraSlot 1 recording chunk 2 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/002_20260304_153525.mp4"
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:25.194: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+QtVideoRecorder slot 2 recording duration: 10 seconds
+
+========== SOURCE CHANGE TRIGGERED ==========
+CameraSlot 1 source selector changed to index 5
+  Selected: type= 2 source= "3" display= "Wired 3: AV.io SDI+ #2"
+  Saving to config...
+  Current m_streaming: true
+  >>> STOPPING current stream <<<
+########## CameraSlot 1 stopStream() ##########
+  m_streaming: true m_currentSourceType: 1
+  Stopping camera capture...
+  m_cameraCapture: MCM::QtCameraCapture(0x5dce0ae31a70) isActive: true
+=== QtCameraCapture::stop === slot 1
+  Camera: QCamera(0x5dce0ae24c90) active: true
+  Stopping camera...
+*** QtCameraCapture::onCameraActiveChanged *** slot 1 active: false was_connected: true
+  Emitting connectionLost signal
+*** CameraSlot 1 onConnectionLost() ***
+OptimizedVideoWidget::clear() - resetting video item
+=== QtVideoRecorder::stopRecording === slot 1
+CameraSlot 1 recording chunk 2 completed: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/002_20260304_153525.mp4"
+QtVideoRecorder: Recording stopped for slot 1
+  Display cleared, showing No Signal
+  Clearing video output from session...
+  Stop complete
+  Clearing video widget...
+OptimizedVideoWidget::clear() - resetting video item
+########## CameraSlot 1 stopStream() DONE ##########
+  >>> STARTING new stream <<<
+########## CameraSlot 1 startStream() ##########
+  m_streaming: false
+  Config - type: 2 source: "3"
+  Resetting video item for clean state...
+OptimizedVideoWidget::resetVideoItem() - creating fresh video item
+  Old videoItem: QGraphicsVideoItem(0x5dce0ae25a50, pos=71.8333,0)
+  New videoItem: QGraphicsVideoItem(0x5dce0b3dd520, pos=0,0)
+  VideoWidget videoItem: QGraphicsVideoItem(0x5dce0b3dd520, pos=0,0)
+  VideoItem size: QSizeF(320, 240)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  >>> Starting Camera pipeline <<<
+  Device index (filtered): 3
+DeviceDetector::cameraDeviceByIndex( 3 ) -> Qt[ 3 ]
+  Found: "AV.io SDI+ (V4L2)"
+  Resolved to device: "AV.io SDI+ (V4L2)" id: "3"
+=== QtCameraCapture::setupCamera START === slot 1
+  Device: "AV.io SDI+ (V4L2)" ID: "3"
+  Clearing stored video output (will be set fresh)
+  Stopping and deleting old camera...
+  Clearing video output from old session...
+  Deleting old session...
+QtVideoRecorder: State changed to "Stopped" for slot 1
+  Creating NEW session and camera for slot 1
+  NEW session created: QMediaCaptureSession(0x5dce0ae32690)
+  NEW camera created: QCamera(0x5dce0cc2a5d0)
+  Camera set to session
+  Video output will be set later via setVideoOutput()
+  Frame access will be connected to video item's sink
+  Selected format: QSize(1280, 720) @ 20 fps
+=== QtCameraCapture::setupCamera END === slot 1
+  Device configured, now setting video output...
+QtCameraCapture::setVideoOutput slot 1 videoOutput: QGraphicsVideoItem(0x5dce0b3dd520) session: QMediaCaptureSession(0x5dce0ae32690)
+  Video output SET on session
+  Connected to video item's sink for frame access
+  Video output set, now calling start()...
+=== QtCameraCapture::start === slot 1
+  Camera: QCamera(0x5dce0cc2a5d0) Session: QMediaCaptureSession(0x5dce0ae32690) VideoOutput: QGraphicsVideoItem(0x5dce0b3dd520)
+  Calling m_camera->start()...
+*** QtCameraCapture::onCameraActiveChanged *** slot 1 active: true was_connected: false
+  Emitting connectionEstablished signal
+*** CameraSlot 1 onConnectionEstablished() ***
+  VideoItem: QGraphicsVideoItem(0x5dce0b3dd520, pos=0,0)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  Starting hardware-accelerated recording...
+QtVideoRecorder: Session set for slot 1 (recorder will be attached on first chunk)
+=== QtVideoRecorder::startRecording === slot 1
+  Output dir (input): "recordings"
+  Chunk duration: 10 seconds
+  Output dir (absolute): "/home/onj/weldbeing-v-multicamera-monitoring/recordings"
+  Slot directory created: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1"
+QtVideoRecorder::rotateChunk (double-buffer) slot 1
+  Double-buffer swap: old= 0x0 new= 0x5dce0ae44070
+  Starting chunk 1 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/001_20260304_153526.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 1
+CameraSlot 1 recording chunk 1 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/001_20260304_153526.mp4"
+QtVideoRecorder: Recording started for slot 1
+  Status label hidden, connection complete
+  Camera start() called, active: true
+  Camera start() called
+########## CameraSlot 1 startStream() DONE ##########
+========== SOURCE CHANGE COMPLETE ==========
+
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 2
+  Double-buffer swap: old= 0x5dce0ae7c910 new= 0x5dce0ae85df0
+  Starting chunk 2 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/002_20260304_153526.mp4"
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:27.013: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:27.027: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+QtVideoRecorder: State changed to "Stopped" for slot 2
+QtVideoRecorder: State changed to "Recording" for slot 2
+CameraSlot 2 recording chunk 2 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/002_20260304_153526.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 3
+  Double-buffer swap: old= 0x5dce0aead620 new= 0x5dce0aeaa650
+  Starting chunk 2 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/002_20260304_153527.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 3
+CameraSlot 3 recording chunk 2 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/002_20260304_153527.mp4"
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+QtVideoRecorder: Error "ResourceError" - "stream error: no more input formats" for slot 1
+CameraSlot 1 recording error: "stream error: no more input formats"
+QtVideoRecorder: State changed to "Stopped" for slot 1
+QtVideoRecorder: Error "ResourceError" - "Internal data stream error." for slot 1
+CameraSlot 1 recording error: "Internal data stream error."
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:27.598: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+
+========== SOURCE CHANGE TRIGGERED ==========
+CameraSlot 2 source selector changed to index 3
+  Selected: type= 2 source= "1" display= "Wired 1: HP True Vision FHD Camera #1"
+  Saving to config...
+  Current m_streaming: true
+  >>> STOPPING current stream <<<
+########## CameraSlot 2 stopStream() ##########
+  m_streaming: true m_currentSourceType: 2
+  Stopping camera capture...
+  m_cameraCapture: MCM::QtCameraCapture(0x5dce0ae6a3c0) isActive: true
+=== QtCameraCapture::stop === slot 2
+  Camera: QCamera(0x5dce0ae6bd50) active: true
+  Stopping camera...
+*** QtCameraCapture::onCameraActiveChanged *** slot 2 active: false was_connected: true
+  Emitting connectionLost signal
+*** CameraSlot 2 onConnectionLost() ***
+OptimizedVideoWidget::clear() - resetting video item
+=== QtVideoRecorder::stopRecording === slot 2
+CameraSlot 2 recording chunk 2 completed: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/002_20260304_153526.mp4"
+QtVideoRecorder: Recording stopped for slot 2
+  Display cleared, showing No Signal
+  Clearing video output from session...
+  Stop complete
+  Clearing video widget...
+OptimizedVideoWidget::clear() - resetting video item
+########## CameraSlot 2 stopStream() DONE ##########
+  >>> STARTING new stream <<<
+########## CameraSlot 2 startStream() ##########
+  m_streaming: false
+  Config - type: 2 source: "1"
+  Resetting video item for clean state...
+OptimizedVideoWidget::resetVideoItem() - creating fresh video item
+  Old videoItem: QGraphicsVideoItem(0x5dce0ae49010, pos=209.5,0)
+  New videoItem: QGraphicsVideoItem(0x5dce0b924510, pos=0,0)
+  VideoWidget videoItem: QGraphicsVideoItem(0x5dce0b924510, pos=0,0)
+  VideoItem size: QSizeF(320, 240)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  >>> Starting Camera pipeline <<<
+  Device index (filtered): 1
+DeviceDetector::cameraDeviceByIndex( 1 ) -> Qt[ 1 ]
+  Found: "HP True Vision FHD Camera (V4L2)"
+  Resolved to device: "HP True Vision FHD Camera (V4L2)" id: "1"
+=== QtCameraCapture::setupCamera START === slot 2
+  Device: "HP True Vision FHD Camera (V4L2)" ID: "1"
+  Clearing stored video output (will be set fresh)
+  Stopping and deleting old camera...
+  Clearing video output from old session...
+  Deleting old session...
+QtVideoRecorder: State changed to "Stopped" for slot 2
+  Creating NEW session and camera for slot 2
+  NEW session created: QMediaCaptureSession(0x5dce0b8286d0)
+  NEW camera created: QCamera(0x5dce0b9b9040)
+  Camera set to session
+  Video output will be set later via setVideoOutput()
+  Frame access will be connected to video item's sink
+  Selected format: QSize(1280, 720) @ 30 fps
+=== QtCameraCapture::setupCamera END === slot 2
+  Device configured, now setting video output...
+QtCameraCapture::setVideoOutput slot 2 videoOutput: QGraphicsVideoItem(0x5dce0b924510) session: QMediaCaptureSession(0x5dce0b8286d0)
+  Video output SET on session
+  Connected to video item's sink for frame access
+  Video output set, now calling start()...
+=== QtCameraCapture::start === slot 2
+  Camera: QCamera(0x5dce0b9b9040) Session: QMediaCaptureSession(0x5dce0b8286d0) VideoOutput: QGraphicsVideoItem(0x5dce0b924510)
+  Calling m_camera->start()...
+*** QtCameraCapture::onCameraActiveChanged *** slot 2 active: true was_connected: false
+  Emitting connectionEstablished signal
+*** CameraSlot 2 onConnectionEstablished() ***
+  VideoItem: QGraphicsVideoItem(0x5dce0b924510, pos=0,0)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  Starting hardware-accelerated recording...
+QtVideoRecorder: Session set for slot 2 (recorder will be attached on first chunk)
+=== QtVideoRecorder::startRecording === slot 2
+  Output dir (input): "recordings"
+  Chunk duration: 10 seconds
+  Output dir (absolute): "/home/onj/weldbeing-v-multicamera-monitoring/recordings"
+  Slot directory created: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2"
+QtVideoRecorder::rotateChunk (double-buffer) slot 2
+  Double-buffer swap: old= 0x0 new= 0x5dce0ae7c910
+  Starting chunk 1 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/001_20260304_153528.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 2
+CameraSlot 2 recording chunk 1 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/001_20260304_153528.mp4"
+QtVideoRecorder: Recording started for slot 2
+  Status label hidden, connection complete
+  Camera start() called, active: true
+  Camera start() called
+########## CameraSlot 2 startStream() DONE ##########
+========== SOURCE CHANGE COMPLETE ==========
+
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:28.575: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:28.719: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+*** OptimizedVideoWidget::onNativeSizeChanged *** QSizeF(1280, 720)
+  VideoItem: QGraphicsVideoItem(0x5dce0b924510, pos=0,0) previous nativeSize: QSizeF(-1, -1)
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 0
+  Double-buffer swap: old= 0x5dce0adf7ea0 new= 0x5dce0adf84a0
+  Starting chunk 2 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/002_20260304_153533.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 0
+CameraSlot 0 recording chunk 2 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/002_20260304_153533.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 1
+  Double-buffer swap: old= 0x5dce0ae44070 new= 0x5dce0ae4b320
+  Starting chunk 2 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/002_20260304_153537.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 1
+CameraSlot 1 recording chunk 2 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/002_20260304_153537.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 3
+  Double-buffer swap: old= 0x5dce0aeaa650 new= 0x5dce0aead620
+  Starting chunk 3 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/003_20260304_153537.mp4"
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+QtVideoRecorder: State changed to "Stopped" for slot 3
+QtVideoRecorder: State changed to "Recording" for slot 3
+CameraSlot 3 recording chunk 3 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/003_20260304_153537.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 2
+  Double-buffer swap: old= 0x5dce0ae7c910 new= 0x5dce0ae85df0
+  Starting chunk 2 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/002_20260304_153538.mp4"
+QtVideoRecorder: State changed to "Stopped" for slot 2
+QtVideoRecorder: State changed to "Recording" for slot 2
+CameraSlot 2 recording chunk 2 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/002_20260304_153538.mp4"
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:38.184: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+QtVideoRecorder: Error "ResourceError" - "stream error: no more input formats" for slot 3
+CameraSlot 3 recording error: "stream error: no more input formats"
+QtVideoRecorder: State changed to "Stopped" for slot 3
+QtVideoRecorder: Error "ResourceError" - "stream error: no more input formats" for slot 1
+CameraSlot 1 recording error: "stream error: no more input formats"
+QtVideoRecorder: State changed to "Stopped" for slot 1
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 0
+  Double-buffer swap: old= 0x5dce0adf84a0 new= 0x5dce0adf7ea0
+  Starting chunk 3 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/003_20260304_153543.mp4"
+QtVideoRecorder: State changed to "Stopped" for slot 0
+QtVideoRecorder: State changed to "Recording" for slot 0
+CameraSlot 0 recording chunk 3 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/003_20260304_153543.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 1
+  Double-buffer swap: old= 0x5dce0ae4b320 new= 0x5dce0ae44070
+  Starting chunk 3 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/003_20260304_153547.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 1
+CameraSlot 1 recording chunk 3 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/003_20260304_153547.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 3
+  Double-buffer swap: old= 0x5dce0aead620 new= 0x5dce0aeaa650
+  Starting chunk 4 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/004_20260304_153547.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 3
+CameraSlot 3 recording chunk 4 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/004_20260304_153547.mp4"
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 2
+  Double-buffer swap: old= 0x5dce0ae85df0 new= 0x5dce0ae7c910
+  Starting chunk 3 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/003_20260304_153548.mp4"
+QtVideoRecorder: State changed to "Stopped" for slot 2
+QtVideoRecorder: State changed to "Recording" for slot 2
+CameraSlot 2 recording chunk 3 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/003_20260304_153548.mp4"
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:48.198: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+
+========== SOURCE CHANGE TRIGGERED ==========
+CameraSlot 0 source selector changed to index 3
+  Selected: type= 2 source= "1" display= "Wired 1: HP True Vision FHD Camera #1"
+  Saving to config...
+  Current m_streaming: true
+  >>> STOPPING current stream <<<
+########## CameraSlot 0 stopStream() ##########
+  m_streaming: true m_currentSourceType: 2
+  Stopping camera capture...
+  m_cameraCapture: MCM::QtCameraCapture(0x5dce0adccc30) isActive: true
+=== QtCameraCapture::stop === slot 0
+  Camera: QCamera(0x5dce0b82d350) active: true
+  Stopping camera...
+*** QtCameraCapture::onCameraActiveChanged *** slot 0 active: false was_connected: true
+  Emitting connectionLost signal
+*** CameraSlot 0 onConnectionLost() ***
+OptimizedVideoWidget::clear() - resetting video item
+=== QtVideoRecorder::stopRecording === slot 0
+CameraSlot 0 recording chunk 3 completed: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/003_20260304_153543.mp4"
+QtVideoRecorder: Recording stopped for slot 0
+  Display cleared, showing No Signal
+  Clearing video output from session...
+  Stop complete
+  Clearing video widget...
+OptimizedVideoWidget::clear() - resetting video item
+########## CameraSlot 0 stopStream() DONE ##########
+  >>> STARTING new stream <<<
+########## CameraSlot 0 startStream() ##########
+  m_streaming: false
+  Config - type: 2 source: "1"
+  Resetting video item for clean state...
+OptimizedVideoWidget::resetVideoItem() - creating fresh video item
+  Old videoItem: QGraphicsVideoItem(0x5dce0b9b4d70, pos=0,0)
+  New videoItem: QGraphicsVideoItem(0x5dce0be9e490, pos=0,0)
+  VideoWidget videoItem: QGraphicsVideoItem(0x5dce0be9e490, pos=0,0)
+  VideoItem size: QSizeF(320, 240)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  >>> Starting Camera pipeline <<<
+  Device index (filtered): 1
+DeviceDetector::cameraDeviceByIndex( 1 ) -> Qt[ 1 ]
+  Found: "HP True Vision FHD Camera (V4L2)"
+  Resolved to device: "HP True Vision FHD Camera (V4L2)" id: "1"
+=== QtCameraCapture::setupCamera START === slot 0
+  Device: "HP True Vision FHD Camera (V4L2)" ID: "1"
+  Clearing stored video output (will be set fresh)
+  Stopping and deleting old camera...
+  Clearing video output from old session...
+  Deleting old session...
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:49.131: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+QtVideoRecorder: State changed to "Stopped" for slot 0
+  Creating NEW session and camera for slot 0
+  NEW session created: QMediaCaptureSession(0x5dce0adb05e0)
+  NEW camera created: QCamera(0x5dce0bcfc060)
+  Camera set to session
+  Video output will be set later via setVideoOutput()
+  Frame access will be connected to video item's sink
+  Selected format: QSize(1280, 720) @ 30 fps
+=== QtCameraCapture::setupCamera END === slot 0
+  Device configured, now setting video output...
+QtCameraCapture::setVideoOutput slot 0 videoOutput: QGraphicsVideoItem(0x5dce0be9e490) session: QMediaCaptureSession(0x5dce0adb05e0)
+  Video output SET on session
+  Connected to video item's sink for frame access
+  Video output set, now calling start()...
+=== QtCameraCapture::start === slot 0
+  Camera: QCamera(0x5dce0bcfc060) Session: QMediaCaptureSession(0x5dce0adb05e0) VideoOutput: QGraphicsVideoItem(0x5dce0be9e490)
+  Calling m_camera->start()...
+*** QtCameraCapture::onCameraActiveChanged *** slot 0 active: true was_connected: false
+  Emitting connectionEstablished signal
+*** CameraSlot 0 onConnectionEstablished() ***
+  VideoItem: QGraphicsVideoItem(0x5dce0be9e490, pos=0,0)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  Starting hardware-accelerated recording...
+QtVideoRecorder: Session set for slot 0 (recorder will be attached on first chunk)
+=== QtVideoRecorder::startRecording === slot 0
+  Output dir (input): "recordings"
+  Chunk duration: 10 seconds
+  Output dir (absolute): "/home/onj/weldbeing-v-multicamera-monitoring/recordings"
+  Slot directory created: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0"
+QtVideoRecorder::rotateChunk (double-buffer) slot 0
+  Double-buffer swap: old= 0x0 new= 0x5dce0adf7ea0
+  Starting chunk 1 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/001_20260304_153549.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 0
+CameraSlot 0 recording chunk 1 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/001_20260304_153549.mp4"
+QtVideoRecorder: Recording started for slot 0
+  Status label hidden, connection complete
+  Camera start() called, active: true
+  Camera start() called
+########## CameraSlot 0 startStream() DONE ##########
+========== SOURCE CHANGE COMPLETE ==========
+
+*** OptimizedVideoWidget::onNativeSizeChanged *** QSizeF(1280, 720)
+  VideoItem: QGraphicsVideoItem(0x5dce0be9e490, pos=0,0) previous nativeSize: QSizeF(-1, -1)
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:49.466: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+
+========== SOURCE CHANGE TRIGGERED ==========
+CameraSlot 0 source selector changed to index 2
+  Selected: type= 2 source= "0" display= "Wired 0: AV.io SDI+ #1"
+  Saving to config...
+  Current m_streaming: true
+  >>> STOPPING current stream <<<
+########## CameraSlot 0 stopStream() ##########
+  m_streaming: true m_currentSourceType: 2
+  Stopping camera capture...
+  m_cameraCapture: MCM::QtCameraCapture(0x5dce0adccc30) isActive: true
+=== QtCameraCapture::stop === slot 0
+  Camera: QCamera(0x5dce0bcfc060) active: true
+  Stopping camera...
+*** QtCameraCapture::onCameraActiveChanged *** slot 0 active: false was_connected: true
+  Emitting connectionLost signal
+*** CameraSlot 0 onConnectionLost() ***
+OptimizedVideoWidget::clear() - resetting video item
+=== QtVideoRecorder::stopRecording === slot 0
+CameraSlot 0 recording chunk 1 completed: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/001_20260304_153549.mp4"
+QtVideoRecorder: Recording stopped for slot 0
+  Display cleared, showing No Signal
+  Clearing video output from session...
+  Stop complete
+  Clearing video widget...
+OptimizedVideoWidget::clear() - resetting video item
+########## CameraSlot 0 stopStream() DONE ##########
+  >>> STARTING new stream <<<
+########## CameraSlot 0 startStream() ##########
+  m_streaming: false
+  Config - type: 2 source: "0"
+  Resetting video item for clean state...
+OptimizedVideoWidget::resetVideoItem() - creating fresh video item
+  Old videoItem: QGraphicsVideoItem(0x5dce0be9e490, pos=71.8333,0)
+  New videoItem: QGraphicsVideoItem(0x5dce0bcd52b0, pos=0,0)
+  VideoWidget videoItem: QGraphicsVideoItem(0x5dce0bcd52b0, pos=0,0)
+  VideoItem size: QSizeF(320, 240)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  >>> Starting Camera pipeline <<<
+  Device index (filtered): 0
+DeviceDetector::cameraDeviceByIndex( 0 ) -> Qt[ 0 ]
+  Found: "AV.io SDI+ (V4L2)"
+  Resolved to device: "AV.io SDI+ (V4L2)" id: "0"
+=== QtCameraCapture::setupCamera START === slot 0
+  Device: "AV.io SDI+ (V4L2)" ID: "0"
+  Clearing stored video output (will be set fresh)
+  Stopping and deleting old camera...
+  Clearing video output from old session...
+  Deleting old session...
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:51.156: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+QtVideoRecorder: State changed to "Stopped" for slot 0
+  Creating NEW session and camera for slot 0
+  NEW session created: QMediaCaptureSession(0x7a19f83bb890)
+  NEW camera created: QCamera(0x5dce0ba101c0)
+  Camera set to session
+  Video output will be set later via setVideoOutput()
+  Frame access will be connected to video item's sink
+  Selected format: QSize(1280, 720) @ 20 fps
+=== QtCameraCapture::setupCamera END === slot 0
+  Device configured, now setting video output...
+QtCameraCapture::setVideoOutput slot 0 videoOutput: QGraphicsVideoItem(0x5dce0bcd52b0) session: QMediaCaptureSession(0x7a19f83bb890)
+  Video output SET on session
+  Connected to video item's sink for frame access
+  Video output set, now calling start()...
+=== QtCameraCapture::start === slot 0
+  Camera: QCamera(0x5dce0ba101c0) Session: QMediaCaptureSession(0x7a19f83bb890) VideoOutput: QGraphicsVideoItem(0x5dce0bcd52b0)
+  Calling m_camera->start()...
+*** QtCameraCapture::onCameraActiveChanged *** slot 0 active: true was_connected: false
+  Emitting connectionEstablished signal
+*** CameraSlot 0 onConnectionEstablished() ***
+  VideoItem: QGraphicsVideoItem(0x5dce0bcd52b0, pos=0,0)
+  VideoItem nativeSize: QSizeF(-1, -1)
+  Starting hardware-accelerated recording...
+QtVideoRecorder: Session set for slot 0 (recorder will be attached on first chunk)
+=== QtVideoRecorder::startRecording === slot 0
+  Output dir (input): "recordings"
+  Chunk duration: 10 seconds
+  Output dir (absolute): "/home/onj/weldbeing-v-multicamera-monitoring/recordings"
+  Slot directory created: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0"
+QtVideoRecorder::rotateChunk (double-buffer) slot 0
+  Double-buffer swap: old= 0x0 new= 0x5dce0adf7ea0
+  Starting chunk 1 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/001_20260304_153552.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 0
+CameraSlot 0 recording chunk 1 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/001_20260304_153552.mp4"
+QtVideoRecorder: Recording started for slot 0
+  Status label hidden, connection complete
+  Camera start() called, active: true
+  Camera start() called
+########## CameraSlot 0 startStream() DONE ##########
+========== SOURCE CHANGE COMPLETE ==========
+
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:52.639: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+QtVideoRecorder: Error "ResourceError" - "stream error: no more input formats" for slot 0
+CameraSlot 0 recording error: "stream error: no more input formats"
+QtVideoRecorder: State changed to "Stopped" for slot 0
+QtVideoRecorder: Error "ResourceError" - "Internal data stream error." for slot 0
+CameraSlot 0 recording error: "Internal data stream error."
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 1
+  Double-buffer swap: old= 0x5dce0ae44070 new= 0x5dce0ae4b320
+  Starting chunk 4 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/004_20260304_153557.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 3
+  Double-buffer swap: old= 0x5dce0aeaa650 new= 0x5dce0aead620
+  Starting chunk 5 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/005_20260304_153557.mp4"
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+QtVideoRecorder: State changed to "Stopped" for slot 1
+QtVideoRecorder: State changed to "Stopped" for slot 3
+QtVideoRecorder: State changed to "Recording" for slot 3
+CameraSlot 3 recording chunk 5 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/005_20260304_153557.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 1
+CameraSlot 1 recording chunk 4 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/004_20260304_153557.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 2
+  Double-buffer swap: old= 0x5dce0ae7c910 new= 0x5dce0ae85df0
+  Starting chunk 4 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/004_20260304_153558.mp4"
+QtVideoRecorder: State changed to "Stopped" for slot 2
+QtVideoRecorder: State changed to "Recording" for slot 2
+CameraSlot 2 recording chunk 4 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/004_20260304_153558.mp4"
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:35:58.185: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 0
+  Double-buffer swap: old= 0x5dce0adf7ea0 new= 0x5dce0adf84a0
+  Starting chunk 2 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/002_20260304_153602.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 0
+CameraSlot 0 recording chunk 2 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/002_20260304_153602.mp4"
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 3
+  Double-buffer swap: old= 0x5dce0aead620 new= 0x5dce0aeaa650
+  Starting chunk 6 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/006_20260304_153607.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 1
+  Double-buffer swap: old= 0x5dce0ae4b320 new= 0x5dce0ae44070
+  Starting chunk 5 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/005_20260304_153607.mp4"
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+QtVideoRecorder: State changed to "Stopped" for slot 3
+QtVideoRecorder: State changed to "Stopped" for slot 1
+QtVideoRecorder: State changed to "Recording" for slot 1
+CameraSlot 1 recording chunk 5 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/005_20260304_153607.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 3
+CameraSlot 3 recording chunk 6 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/006_20260304_153607.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 2
+  Double-buffer swap: old= 0x5dce0ae85df0 new= 0x5dce0ae7c910
+  Starting chunk 5 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/005_20260304_153608.mp4"
+QtVideoRecorder: State changed to "Stopped" for slot 2
+QtVideoRecorder: State changed to "Recording" for slot 2
+CameraSlot 2 recording chunk 5 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/005_20260304_153608.mp4"
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:36:08.173: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 0
+  Double-buffer swap: old= 0x5dce0adf84a0 new= 0x5dce0adf7ea0
+  Starting chunk 3 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/003_20260304_153612.mp4"
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+QtVideoRecorder: State changed to "Stopped" for slot 0
+QtVideoRecorder: State changed to "Recording" for slot 0
+CameraSlot 0 recording chunk 3 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/003_20260304_153612.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 1
+  Double-buffer swap: old= 0x5dce0ae44070 new= 0x5dce0ae4b320
+  Starting chunk 6 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/006_20260304_153617.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 3
+  Double-buffer swap: old= 0x5dce0aeaa650 new= 0x5dce0aead620
+  Starting chunk 7 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/007_20260304_153617.mp4"
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+QtVideoRecorder: State changed to "Stopped" for slot 3
+QtVideoRecorder: State changed to "Stopped" for slot 1
+QtVideoRecorder: State changed to "Recording" for slot 3
+CameraSlot 3 recording chunk 7 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/007_20260304_153617.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 1
+CameraSlot 1 recording chunk 6 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/006_20260304_153617.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 2
+  Double-buffer swap: old= 0x5dce0ae7c910 new= 0x5dce0ae85df0
+  Starting chunk 6 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/006_20260304_153618.mp4"
+QtVideoRecorder: State changed to "Stopped" for slot 2
+QtVideoRecorder: State changed to "Recording" for slot 2
+CameraSlot 2 recording chunk 6 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/006_20260304_153618.mp4"
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:36:18.195: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 0
+  Double-buffer swap: old= 0x5dce0adf7ea0 new= 0x5dce0adf84a0
+  Starting chunk 4 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/004_20260304_153622.mp4"
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+QtVideoRecorder: State changed to "Stopped" for slot 0
+QtVideoRecorder: State changed to "Recording" for slot 0
+CameraSlot 0 recording chunk 4 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_0/004_20260304_153622.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 3
+  Double-buffer swap: old= 0x5dce0aead620 new= 0x5dce0aeaa650
+  Starting chunk 8 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/008_20260304_153627.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 1
+  Double-buffer swap: old= 0x5dce0ae4b320 new= 0x5dce0ae44070
+  Starting chunk 7 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/007_20260304_153627.mp4"
+DeviceDetector: Qt reports 8 total devices
+DeviceDetector: V4L2 captures: 4 , Qt total: 8
+DeviceDetector: ✓ MATCH - using 4 capture devices
+=== Qt Device List ===
+  Qt[ 0 ] "AV.io SDI+ (V4L2)" id: "0" - "CAPTURE"
+  Qt[ 1 ] "HP True Vision FHD Camera (V4L2)" id: "1" - "CAPTURE"
+  Qt[ 2 ] "HP True Vision FHD Camera (V4L2)" id: "2" - "CAPTURE"
+  Qt[ 3 ] "AV.io SDI+ (V4L2)" id: "3" - "CAPTURE"
+  Qt[ 4 ] "AV.io SDI+ (V4L2)" id: "4" - "metadata"
+  Qt[ 5 ] "HP True Vision FHD Camera (V4L2)" id: "5" - "metadata"
+  Qt[ 6 ] "HP True Vision FHD Camera (V4L2)" id: "6" - "metadata"
+  Qt[ 7 ] "AV.io SDI+ (V4L2)" id: "7" - "metadata"
+=== Capture Devices ===
+  [ 0 ] "AV.io SDI+ #1" -> Qt index: "0"
+  [ 1 ] "HP True Vision FHD Camera #1" -> Qt index: "1"
+  [ 2 ] "HP True Vision FHD Camera #2" -> Qt index: "2"
+  [ 3 ] "AV.io SDI+ #2" -> Qt index: "3"
+DeviceDetector: Total 4 capture devices available
+QtVideoRecorder: State changed to "Stopped" for slot 3
+QtVideoRecorder: State changed to "Stopped" for slot 1
+QtVideoRecorder: State changed to "Recording" for slot 1
+CameraSlot 1 recording chunk 7 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_1/007_20260304_153627.mp4"
+QtVideoRecorder: State changed to "Recording" for slot 3
+CameraSlot 3 recording chunk 8 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_3/008_20260304_153627.mp4"
+QtVideoRecorder: Chunk timer expired, rotating...
+QtVideoRecorder::rotateChunk (double-buffer) slot 2
+  Double-buffer swap: old= 0x5dce0ae85df0 new= 0x5dce0ae7c910
+  Starting chunk 7 : "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/007_20260304_153628.mp4"
+QtVideoRecorder: State changed to "Stopped" for slot 2
+QtVideoRecorder: State changed to "Recording" for slot 2
+CameraSlot 2 recording chunk 7 started: "/home/onj/weldbeing-v-multicamera-monitoring/recordings/slot_2/007_20260304_153628.mp4"
+
+(multi-camera-monitor:39765): GLib-GObject-CRITICAL **: 15:36:28.210: g_object_unref: assertion 'G_IS_OBJECT (object)' failed
+^C
+
