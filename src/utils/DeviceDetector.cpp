@@ -148,59 +148,47 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
         info.busInfo = v4l2Dev.busInfo;
         info.available = true;
         
-        // Match by device NUMBER from path (Qt device ID = /dev/videoN number)
-        // This is the ONLY reliable way to match because names can be duplicated
-        // e.g., /dev/video0 -> Qt device ID "0"
-        //       /dev/video6 -> Qt device ID "6"
+        // Match by Qt ARRAY INDEX (not ID - IDs can have gaps!)
+        // Qt array index is always sequential: 0, 1, 2, 3...
+        // Qt device ID can have gaps: "0", "1", "2", "4"... (missing "3")
+        //
+        // V4L2 and Qt have DIFFERENT ordering:
+        // V4L2 (interleaved):  0c, 0m, 1c, 1m, 2c, 2m  -> /dev/video0,1,2,3,4,5
+        // Qt (separated):      0c, 1c, 2c, 0m, 1m, 2m  -> index 0,1,2,3,4,5
+        //
+        // Formula: Qt array index = V4L2 device number / 2
         
         qDebug() << "";
         qDebug() << "--- Matching V4L2[" << i << "]:" << v4l2Dev.path << "---";
         
-        // V4L2 and Qt have DIFFERENT ordering:
-        // V4L2 (interleaved):  0c, 0m, 1c, 1m, 2c, 2m  -> /dev/video0,1,2,3,4,5
-        // Qt (separated):      0c, 1c, 2c, 0m, 1m, 2m  -> ID "0","1","2","3","4","5"
-        //
-        // So V4L2 capture devices map to Qt:
-        //   /dev/video0 (camera 0) -> Qt ID "0"
-        //   /dev/video2 (camera 1) -> Qt ID "1"
-        //   /dev/video4 (camera 2) -> Qt ID "2"
-        //
-        // Formula: Qt ID = V4L2 device number / 2
-        
-        QString targetDeviceId;
+        int targetQtIndex = -1;
         if (v4l2Dev.path.startsWith("/dev/video")) {
             bool ok;
             int v4l2DeviceNum = v4l2Dev.path.mid(10).toInt(&ok);
             if (ok) {
-                int qtDeviceId = v4l2DeviceNum / 2;  // Map to Qt's capture-first ordering
-                targetDeviceId = QString::number(qtDeviceId);
+                targetQtIndex = v4l2DeviceNum / 2;  // Map to Qt array index
             }
         }
-        qDebug() << "  V4L2 path:" << v4l2Dev.path << "-> Target Qt ID:" << targetDeviceId;
+        qDebug() << "  V4L2 path:" << v4l2Dev.path << "-> Target Qt index:" << targetQtIndex;
         
-        // Find Qt device with matching ID
-        int selectedQtIndex = -1;
+        // Log all Qt devices for debugging
         for (int q = 0; q < qtDevices.size(); ++q) {
             const QCameraDevice& qtDev = qtDevices[q];
             QString qtId = QString::fromUtf8(qtDev.id());
             QString qtName = qtDev.description();
             int position = static_cast<int>(qtDev.position());
-            
-            bool idMatches = (qtId == targetDeviceId);
+            bool isTarget = (q == targetQtIndex);
             qDebug() << "    Qt[" << q << "] id:" << qtId << "pos:" << position << "name:" << qtName
-                     << "| ID match:" << idMatches;
-            
-            if (idMatches) {
-                info.deviceId = qtId;
-                selectedQtIndex = q;
-                // Don't break - continue logging all devices
-            }
+                     << (isTarget ? "<-- TARGET" : "");
         }
         
-        if (!info.deviceId.isEmpty()) {
-            qDebug() << "  >>> SELECTED: V4L2" << v4l2Dev.path << "-> Qt ID:" << info.deviceId;
+        // Use Qt array index directly (store as string for compatibility)
+        if (targetQtIndex >= 0 && targetQtIndex < qtDevices.size()) {
+            info.deviceId = QString::number(targetQtIndex);  // Store Qt INDEX, not ID
+            qDebug() << "  >>> SELECTED: V4L2" << v4l2Dev.path << "-> Qt index:" << targetQtIndex
+                     << "(" << qtDevices[targetQtIndex].description() << ")";
         } else {
-            qWarning() << "  >>> WARNING: No Qt device with ID" << targetDeviceId << "found for" << v4l2Dev.path;
+            qWarning() << "  >>> WARNING: Qt index" << targetQtIndex << "out of range for" << v4l2Dev.path;
         }
         
         // Build display name with device path
@@ -269,21 +257,23 @@ QCameraDevice DeviceDetector::cameraDeviceByIndex(int index) const {
     for (const auto& info : m_lastKnownDevices) {
         if (info.index == index) {
             qDebug() << "DeviceDetector::cameraDeviceByIndex(" << index << ")"
-                     << "Looking for deviceId:" << info.deviceId
+                     << "Qt array index:" << info.deviceId  // deviceId now stores Qt INDEX
                      << "path:" << info.devicePath;
             
             QList<QCameraDevice> allDevices = QMediaDevices::videoInputs();
             
-            // Primary: match by stored deviceId
+            // deviceId stores Qt ARRAY INDEX (not device ID)
+            // Use it directly to get the device from the array
             if (!info.deviceId.isEmpty()) {
-                for (const auto& device : allDevices) {
-                    if (QString::fromUtf8(device.id()) == info.deviceId) {
-                        qDebug() << "  Found Qt device:" << device.description() 
-                                 << "id:" << QString::fromUtf8(device.id());
-                        return device;
-                    }
+                bool ok;
+                int qtIndex = info.deviceId.toInt(&ok);
+                if (ok && qtIndex >= 0 && qtIndex < allDevices.size()) {
+                    const QCameraDevice& device = allDevices[qtIndex];
+                    qDebug() << "  Found Qt device at index" << qtIndex << ":"
+                             << device.description() << "id:" << QString::fromUtf8(device.id());
+                    return device;
                 }
-                qDebug() << "  WARNING: deviceId" << info.deviceId << "not found in Qt devices";
+                qDebug() << "  WARNING: Qt index" << info.deviceId << "invalid or out of range";
             }
             
             // Fallback: try matching by name
