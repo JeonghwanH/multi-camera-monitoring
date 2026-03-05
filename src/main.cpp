@@ -70,6 +70,14 @@ void logMediaBackendInfo() {
 }
 
 int main(int argc, char *argv[]) {
+#ifdef Q_OS_LINUX
+    // Set FFmpeg as default backend on Linux (before QApplication)
+    // FFmpeg has better threading and reports only capture devices
+    if (!std::getenv("QT_MEDIA_BACKEND")) {
+        qputenv("QT_MEDIA_BACKEND", "ffmpeg");
+    }
+#endif
+    
     // Set application attributes before creating QApplication
     QApplication::setApplicationName("Multi-Camera Monitor");
     QApplication::setApplicationVersion("1.0.0");
