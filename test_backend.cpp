@@ -7,19 +7,28 @@
 //   QT_MEDIA_BACKEND=ffmpeg ./test_backend   # Force FFmpeg
 //   QT_MEDIA_BACKEND=gstreamer ./test_backend # Force GStreamer
 
-#include <QCoreApplication>
+// Use QApplication like main app (not QCoreApplication)
+#include <QApplication>
 #include <QMediaDevices>
 #include <QCameraDevice>
 #include <QDebug>
 #include <QLibraryInfo>
+#include <QDir>
 #include <cstdlib>
+
+// Include GUI components like main app
+#include <QMainWindow>
+#include <QGraphicsView>
+#include <QGraphicsScene>
+#include <QGraphicsVideoItem>
+#include <QMediaCaptureSession>
+#include <QCamera>
 
 #ifdef Q_OS_LINUX
 #include <linux/videodev2.h>
 #include <sys/ioctl.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <QDir>
 #include <QFile>
 #include <cstring>
 
@@ -63,18 +72,16 @@ QList<V4L2Info> enumerateV4L2Devices() {
 }
 #endif
 
-int main(int argc, char *argv[])
-{
-    QCoreApplication app(argc, argv);
-    
+void runDeviceTest() {
     qDebug() << "=============================================";
     qDebug() << "  Qt Multimedia Backend Device Test";
+    qDebug() << "  (Using QApplication like main app)";
     qDebug() << "=============================================";
     qDebug() << "";
     
     // Backend info
     const char* backendEnv = std::getenv("QT_MEDIA_BACKEND");
-    qDebug() << "QT_MEDIA_BACKEND env:" << (backendEnv ? backendEnv : "(not set, using default)");
+    qDebug() << "QT_MEDIA_BACKEND env:" << (backendEnv ? backendEnv : "(not set)");
     qDebug() << "Qt Version:" << QT_VERSION_STR;
     qDebug() << "Qt Build:" << QLibraryInfo::build();
     qDebug() << "";
@@ -150,7 +157,44 @@ int main(int argc, char *argv[])
     qDebug() << "=============================================";
     qDebug() << "  Test Complete";
     qDebug() << "=============================================";
+}
+
+int main(int argc, char *argv[])
+{
+    // Same setup as main app
+    QApplication::setApplicationName("Backend Test");
+    QApplication::setApplicationVersion("1.0.0");
+    QApplication::setOrganizationName("MCM");
+    
+    QApplication::setHighDpiScaleFactorRoundingPolicy(
+        Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
+    
+    QApplication app(argc, argv);
+    
+    // Create GUI components like main app does
+    // This might trigger different plugin loading
+    qDebug() << "Creating GUI components (like main app)...";
+    
+    QMainWindow window;
+    QGraphicsView* view = new QGraphicsView(&window);
+    QGraphicsScene* scene = new QGraphicsScene(view);
+    view->setScene(scene);
+    
+    // Create video items like main app
+    QGraphicsVideoItem* videoItem = new QGraphicsVideoItem();
+    scene->addItem(videoItem);
+    
+    // Create capture session like main app
+    QMediaCaptureSession* session = new QMediaCaptureSession(&window);
+    
+    qDebug() << "GUI components created.";
+    qDebug() << "";
+    
+    // Now run device test
+    runDeviceTest();
+    
+    // Clean up
+    delete session;
     
     return 0;
 }
-

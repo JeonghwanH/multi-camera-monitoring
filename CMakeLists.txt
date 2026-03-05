@@ -307,5 +307,7 @@ add_executable(test_backend
 )
 
 target_link_libraries(test_backend PRIVATE
+    Qt6::Widgets
     Qt6::Multimedia
+    Qt6::MultimediaWidgets
 )
