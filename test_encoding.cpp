@@ -1,6 +1,7 @@
 /**
  * Test hardware encoding capabilities on Linux
  * Tests: VAAPI (AMD/Intel), NVENC (NVIDIA), Software fallback
+ * Also tests direct FFmpeg encoding via QProcess
  */
 
 #include <QApplication>
@@ -22,6 +23,8 @@
 #include <QDir>
 #include <QDateTime>
 #include <QDebug>
+#include <QProcess>
+#include <QGroupBox>
 
 class EncodingTestWindow : public QMainWindow {
     Q_OBJECT
@@ -71,16 +74,29 @@ public:
         m_videoWidget->setMinimumHeight(300);
         layout->addWidget(m_videoWidget);
         
-        // Buttons
-        auto* buttonLayout = new QHBoxLayout();
+        // Qt Recording Buttons
+        auto* qtButtonLayout = new QHBoxLayout();
         m_startCameraBtn = new QPushButton("Start Camera");
-        m_recordBtn = new QPushButton("Record 5s Test");
+        m_recordBtn = new QPushButton("Record 5s Test (Qt)");
         m_recordBtn->setEnabled(false);
-        m_testAllBtn = new QPushButton("Test All Codecs");
-        buttonLayout->addWidget(m_startCameraBtn);
-        buttonLayout->addWidget(m_recordBtn);
-        buttonLayout->addWidget(m_testAllBtn);
-        layout->addLayout(buttonLayout);
+        m_testAllBtn = new QPushButton("Test All Qt Codecs");
+        qtButtonLayout->addWidget(m_startCameraBtn);
+        qtButtonLayout->addWidget(m_recordBtn);
+        qtButtonLayout->addWidget(m_testAllBtn);
+        layout->addLayout(qtButtonLayout);
+        
+        // FFmpeg Direct Encoding Buttons (GPU Hardware)
+        auto* ffmpegGroup = new QGroupBox("Direct FFmpeg GPU Encoding (bypasses Qt)");
+        auto* ffmpegLayout = new QHBoxLayout(ffmpegGroup);
+        m_testNvencBtn = new QPushButton("Test NVENC (NVIDIA)");
+        m_testVaapiBtn = new QPushButton("Test VA-API (Intel/AMD)");
+        m_testQsvBtn = new QPushButton("Test QSV (Intel)");
+        m_testSoftwareBtn = new QPushButton("Test libx264 (CPU)");
+        ffmpegLayout->addWidget(m_testNvencBtn);
+        ffmpegLayout->addWidget(m_testVaapiBtn);
+        ffmpegLayout->addWidget(m_testQsvBtn);
+        ffmpegLayout->addWidget(m_testSoftwareBtn);
+        layout->addWidget(ffmpegGroup);
         
         // Log output
         m_log = new QTextEdit();
@@ -95,6 +111,12 @@ public:
         connect(m_startCameraBtn, &QPushButton::clicked, this, &EncodingTestWindow::startCamera);
         connect(m_recordBtn, &QPushButton::clicked, this, &EncodingTestWindow::recordTest);
         connect(m_testAllBtn, &QPushButton::clicked, this, &EncodingTestWindow::testAllCodecs);
+        
+        // FFmpeg direct encoding connections
+        connect(m_testNvencBtn, &QPushButton::clicked, this, [this]() { testFFmpegEncoder("h264_nvenc", "NVENC"); });
+        connect(m_testVaapiBtn, &QPushButton::clicked, this, [this]() { testFFmpegEncoder("h264_vaapi", "VA-API"); });
+        connect(m_testQsvBtn, &QPushButton::clicked, this, [this]() { testFFmpegEncoder("h264_qsv", "Quick Sync"); });
+        connect(m_testSoftwareBtn, &QPushButton::clicked, this, [this]() { testFFmpegEncoder("libx264", "Software/CPU"); });
         
         // Create output directory
         QDir().mkpath("encoding_test");
@@ -307,6 +329,106 @@ private slots:
         QTimer::singleShot(7000, this, &EncodingTestWindow::runNextTest);
     }
     
+    void testFFmpegEncoder(const QString& encoder, const QString& name) {
+        // Get selected camera's device path
+        int idx = m_cameraSelector->currentData().toInt();
+        auto cameras = QMediaDevices::videoInputs();
+        
+        if (idx < 0 || idx >= cameras.size()) {
+            log("ERROR: Select a camera first");
+            return;
+        }
+        
+        QString deviceId = cameras[idx].id();
+        QString devicePath;
+        
+        // Try to get device path
+        if (deviceId.startsWith("/dev/")) {
+            devicePath = deviceId;
+        } else {
+            // Assume it's /dev/videoN where N is the index or ID
+            bool ok;
+            int num = deviceId.toInt(&ok);
+            if (ok) {
+                devicePath = QString("/dev/video%1").arg(num);
+            } else {
+                // Default to video0
+                devicePath = "/dev/video0";
+            }
+        }
+        
+        log("");
+        log(QString("=== Testing FFmpeg %1 Encoder ===").arg(name));
+        log("Device: " + devicePath);
+        log("Encoder: " + encoder);
+        
+        QString outputFile = QString("encoding_test/ffmpeg_%1_%2.mp4")
+            .arg(encoder)
+            .arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss"));
+        
+        QStringList args;
+        args << "-y";  // Overwrite
+        args << "-f" << "v4l2";
+        args << "-i" << devicePath;
+        args << "-t" << "3";  // 3 seconds
+        
+        // Add encoder-specific options
+        if (encoder == "h264_vaapi") {
+            args << "-vaapi_device" << "/dev/dri/renderD128";
+            args << "-vf" << "format=nv12,hwupload";
+        }
+        
+        args << "-c:v" << encoder;
+        
+        if (encoder == "libx264") {
+            args << "-preset" << "ultrafast";  // Fast for testing
+        }
+        
+        args << "-an";  // No audio
+        args << outputFile;
+        
+        log("Command: ffmpeg " + args.join(" "));
+        
+        QProcess* process = new QProcess(this);
+        
+        connect(process, &QProcess::readyReadStandardError, this, [this, process]() {
+            QString output = process->readAllStandardError();
+            // Only log important lines
+            for (const QString& line : output.split('\n')) {
+                if (line.contains("error", Qt::CaseInsensitive) ||
+                    line.contains("encoder", Qt::CaseInsensitive) ||
+                    line.contains("Output #0")) {
+                    log("  " + line.trimmed());
+                }
+            }
+        });
+        
+        connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
+                this, [this, process, name, outputFile](int exitCode, QProcess::ExitStatus status) {
+            if (exitCode == 0) {
+                QFileInfo info(outputFile);
+                if (info.exists() && info.size() > 1000) {
+                    log(QString("✓ SUCCESS: %1 - File: %2 (%3 KB)")
+                        .arg(name)
+                        .arg(outputFile)
+                        .arg(info.size() / 1024));
+                } else {
+                    log(QString("✗ FAILED: %1 - Output file empty or missing").arg(name));
+                }
+            } else {
+                log(QString("✗ FAILED: %1 - Exit code: %2").arg(name).arg(exitCode));
+            }
+            process->deleteLater();
+        });
+        
+        process->start("ffmpeg", args);
+        
+        if (!process->waitForStarted(5000)) {
+            log("ERROR: Failed to start ffmpeg process");
+            process->deleteLater();
+        }
+    }
+    
     void log(const QString& msg) {
         m_log->append(msg);
         qDebug() << msg;
@@ -320,6 +442,10 @@ private:
     QPushButton* m_startCameraBtn = nullptr;
     QPushButton* m_recordBtn = nullptr;
     QPushButton* m_testAllBtn = nullptr;
+    QPushButton* m_testNvencBtn = nullptr;
+    QPushButton* m_testVaapiBtn = nullptr;
+    QPushButton* m_testQsvBtn = nullptr;
+    QPushButton* m_testSoftwareBtn = nullptr;
     QTextEdit* m_log = nullptr;
     
     QCamera* m_camera = nullptr;
