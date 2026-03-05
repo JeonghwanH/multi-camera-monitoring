@@ -37,29 +37,21 @@ endif()
 set(CORE_SOURCES
     src/core/Config.cpp
     src/core/FrameBuffer.cpp
-    src/core/VideoRecorder.cpp
     src/core/QtVideoRecorder.cpp
 )
 
 set(CORE_HEADERS
     src/core/Config.h
     src/core/FrameBuffer.h
-    src/core/VideoRecorder.h
     src/core/QtVideoRecorder.h
 )
 
 set(CAPTURE_SOURCES
-    src/capture/CaptureThread.cpp
-    src/capture/DeviceCapture.cpp
-    src/capture/RtspCapture.cpp
     src/capture/QtCameraCapture.cpp
     src/capture/QtRtspCapture.cpp
 )
 
 set(CAPTURE_HEADERS
-    src/capture/CaptureThread.h
-    src/capture/DeviceCapture.h
-    src/capture/RtspCapture.h
     src/capture/QtCameraCapture.h
     src/capture/QtRtspCapture.h
 )

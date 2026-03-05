@@ -3,7 +3,6 @@
 #include "RtspInputDialog.h"
 #include "capture/QtCameraCapture.h"
 #include "capture/QtRtspCapture.h"
-#include "core/VideoRecorder.h"
 #include "core/QtVideoRecorder.h"
 #include "utils/DeviceDetector.h"
 
@@ -167,10 +166,7 @@ void CameraSlot::setupCapture() {
                 qWarning() << "CameraSlot" << m_slotIndex << "RTSP error:" << error;
             });
     
-    // Create legacy video recorder (for RTSP fallback)
-    m_recorder = new VideoRecorder(m_slotIndex, this);
-    
-    // Create hardware-accelerated video recorder (for camera capture)
+    // Create hardware-accelerated video recorder
     m_qtRecorder = new QtVideoRecorder(m_slotIndex, this);
     
     // Connect recorder signals
@@ -199,12 +195,6 @@ void CameraSlot::cleanupCapture() {
         m_rtspCapture->stop();
         delete m_rtspCapture;
         m_rtspCapture = nullptr;
-    }
-    
-    if (m_recorder) {
-        m_recorder->stopRecording();
-        delete m_recorder;
-        m_recorder = nullptr;
     }
     
     if (m_qtRecorder) {
@@ -514,9 +504,9 @@ void CameraSlot::stopStream() {
     }
     
     // Stop recording
-    if (m_recorder && m_recorder->isRecording()) {
+    if (m_qtRecorder && m_qtRecorder->isRecording()) {
         qDebug() << "  Stopping recorder...";
-        m_recorder->stopRecording();
+        m_qtRecorder->stopRecording();
     }
     
     // Clear display
@@ -569,10 +559,7 @@ void CameraSlot::onConnectionLost() {
     m_videoWidget->clear();
     updateStatusLabel("No Signal", true);
     
-    // Stop recording (both legacy and hardware-accelerated)
-    if (m_recorder && m_recorder->isRecording()) {
-        m_recorder->stopRecording();
-    }
+    // Stop recording
     if (m_qtRecorder && m_qtRecorder->isRecording()) {
         m_qtRecorder->stopRecording();
     }
