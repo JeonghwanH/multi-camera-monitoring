@@ -300,3 +300,12 @@ if(APPLE)
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
     )
 endif()
+
+# Test backend device enumeration (FFmpeg vs GStreamer comparison)
+add_executable(test_backend
+    test_backend.cpp
+)
+
+target_link_libraries(test_backend PRIVATE
+    Qt6::Multimedia
+)
