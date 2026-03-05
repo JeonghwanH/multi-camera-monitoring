@@ -4,6 +4,7 @@
 #include <QStandardPaths>
 #include <QCoreApplication>
 #include <QFileInfo>
+#include <cstdlib>
 
 namespace MCM {
 
@@ -64,13 +65,20 @@ void QtVideoRecorder::configureRecorder(QMediaRecorder* recorder) {
     
 #ifdef Q_OS_LINUX
     // On Linux with FFmpeg backend:
-    // - Try H.264 first (may use NVENC if available)
-    // - Fall back to MPEG4 (software) if hardware encoding fails
+    // 1. Try NVENC (NVIDIA hardware) - disable VA-API to force NVENC
+    // 2. Fall back to MPEG4 (software) if NVENC fails
     if (m_useHardwareEncoding && !m_hardwareEncodingFailed) {
+        // Disable VA-API to force FFmpeg to use NVENC instead
+        // This prevents FFmpeg from trying Intel VA-API first
+        qputenv("LIBVA_DRIVER_NAME", "dummy");
+        
         format.setVideoCodec(QMediaFormat::VideoCodec::H264);
         qDebug() << "QtVideoRecorder slot" << m_slotId 
-                 << ": Trying H.264 (hardware/NVENC if available)";
+                 << ": Trying NVENC (H.264 hardware, VA-API disabled)";
     } else {
+        // Restore VA-API for other uses (if needed)
+        qunsetenv("LIBVA_DRIVER_NAME");
+        
         format.setVideoCodec(QMediaFormat::VideoCodec::MPEG4);
         qDebug() << "QtVideoRecorder slot" << m_slotId 
                  << ": Using MPEG4 (software encoding)";
