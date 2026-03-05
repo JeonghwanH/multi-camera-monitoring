@@ -5,6 +5,7 @@
 #include <QFile>
 #include <algorithm>
 #include <cstring>
+#include <cstdlib>
 
 #ifdef Q_OS_LINUX
 #include <cerrno>
@@ -98,32 +99,50 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
     
 #ifdef Q_OS_LINUX
     // ========================================
-    // Linux: Qt-Only Approach with V4L2 Verification
+    // Linux: Check backend type first
     // ========================================
-    // On Linux, Qt reports both capture and metadata devices
-    // First half = captures, second half = metadata
-    // Use V4L2 count for verification
+    const char* backendEnv = std::getenv("QT_MEDIA_BACKEND");
+    bool isFFmpegBackend = backendEnv && QString(backendEnv).toLower() == "ffmpeg";
     
-    int captureCount = qtTotalCount / 2;  // Default: first half are captures
+    int captureCount;
     
-    // V4L2 count for verification
-    int v4l2Count = countV4L2CaptureDevices();
-    
-    qDebug() << "DeviceDetector: V4L2 captures:" << v4l2Count << ", Qt total:" << qtTotalCount;
-    
-    if (qtTotalCount / 2 == v4l2Count) {
-        // Perfect match
-        captureCount = v4l2Count;
-        qDebug() << "DeviceDetector: ✓ MATCH - using" << captureCount << "capture devices";
-    } else if (v4l2Count == qtTotalCount / 2 + 1) {
-        // Qt missed one device
-        captureCount = v4l2Count;
-        qDebug() << "DeviceDetector: ⚠ Qt missed 1 device - using V4L2 count:" << captureCount;
-    } else if (v4l2Count > qtTotalCount / 2 + 1) {
-        // Qt still loading
-        qDebug() << "DeviceDetector: ⏳ Qt still loading - using Qt count:" << captureCount;
+    if (isFFmpegBackend) {
+        // ========================================
+        // FFmpeg backend: All Qt devices are captures
+        // ========================================
+        // FFmpeg only reports capture devices, not metadata
+        // Device ID is the actual path (e.g., "/dev/video1")
+        captureCount = qtTotalCount;
+        qDebug() << "DeviceDetector: FFmpeg backend - using ALL" << captureCount << "Qt devices";
     } else {
-        qDebug() << "DeviceDetector: ? Unusual counts - using Qt first half:" << captureCount;
+        // ========================================
+        // GStreamer/other backend: First half are captures
+        // ========================================
+        // GStreamer reports both capture and metadata devices
+        // First half = captures, second half = metadata
+        // Use V4L2 count for verification
+        
+        captureCount = qtTotalCount / 2;  // Default: first half are captures
+        
+        // V4L2 count for verification
+        int v4l2Count = countV4L2CaptureDevices();
+        
+        qDebug() << "DeviceDetector: GStreamer backend - V4L2 captures:" << v4l2Count << ", Qt total:" << qtTotalCount;
+        
+        if (qtTotalCount / 2 == v4l2Count) {
+            // Perfect match
+            captureCount = v4l2Count;
+            qDebug() << "DeviceDetector: ✓ MATCH - using" << captureCount << "capture devices";
+        } else if (v4l2Count == qtTotalCount / 2 + 1) {
+            // Qt missed one device
+            captureCount = v4l2Count;
+            qDebug() << "DeviceDetector: ⚠ Qt missed 1 device - using V4L2 count:" << captureCount;
+        } else if (v4l2Count > qtTotalCount / 2 + 1) {
+            // Qt still loading
+            qDebug() << "DeviceDetector: ⏳ Qt still loading - using Qt count:" << captureCount;
+        } else {
+            qDebug() << "DeviceDetector: ? Unusual counts - using Qt first half:" << captureCount;
+        }
     }
 #else
     // ========================================
