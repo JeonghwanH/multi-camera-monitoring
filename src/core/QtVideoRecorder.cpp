@@ -62,17 +62,9 @@ void QtVideoRecorder::configureRecorder(QMediaRecorder* recorder) {
     // Use MP4 container
     format.setFileFormat(QMediaFormat::MPEG4);
     
-#ifdef Q_OS_LINUX
-    // On Linux/GStreamer, let the system negotiate codec
-    // This avoids "stream error: no more input formats" for capture cards
-    // that output unusual pixel formats
-    format.setVideoCodec(QMediaFormat::VideoCodec::Unspecified);
-    qDebug() << "QtVideoRecorder: Using Unspecified codec (Linux/GStreamer negotiation)";
-#else
     // Use H.264 codec - hardware accelerated on most platforms
-    // VideoToolbox on macOS, NVENC on NVIDIA, QSV on Intel
+    // VideoToolbox on macOS, NVENC on NVIDIA, QSV on Intel, VAAPI on Linux
     format.setVideoCodec(QMediaFormat::VideoCodec::H264);
-#endif
     
     // Explicitly disable audio - set to Unspecified to avoid microphone access
     format.setAudioCodec(QMediaFormat::AudioCodec::Unspecified);

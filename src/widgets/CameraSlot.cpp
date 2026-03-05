@@ -13,6 +13,7 @@
 #include <QPainter>
 #include <QMouseEvent>
 #include <QResizeEvent>
+#include <QShowEvent>
 #include <QDebug>
 #include <QElapsedTimer>
 #include <QThread>
@@ -115,6 +116,7 @@ void CameraSlot::setupUi() {
         "border-radius: 8px; "
         "padding: 10px 20px;"
     );
+    m_statusLabel->hide();  // Hide initially, show after layout is complete
     
     mainLayout->addWidget(m_videoWidget, 1);
     
@@ -256,7 +258,9 @@ void CameraSlot::refreshDeviceList() {
     
     updateSourceSelector();
     
-    // Try to restore selection
+    // Try to restore selection WITHOUT triggering stream start
+    // Block signals to prevent onSourceSelectorChanged from being called
+    m_sourceSelector->blockSignals(true);
     for (int i = 0; i < m_sourceItems.size(); ++i) {
         if (m_sourceItems[i].type == currentItem.type && 
             m_sourceItems[i].source == currentItem.source) {
@@ -264,6 +268,7 @@ void CameraSlot::refreshDeviceList() {
             break;
         }
     }
+    m_sourceSelector->blockSignals(false);
 }
 
 void CameraSlot::onSourceSelectorChanged(int index) {
@@ -601,6 +606,15 @@ void CameraSlot::resizeEvent(QResizeEvent* event) {
     // Update debug label position
     if (m_debugMode) {
         updateDebugLabel();
+    }
+}
+
+void CameraSlot::showEvent(QShowEvent* event) {
+    QWidget::showEvent(event);
+    
+    // Show and center the "No Signal" label now that the widget has proper size
+    if (m_statusLabel && !m_streaming) {
+        updateStatusLabel("No Signal", true);
     }
 }
 
