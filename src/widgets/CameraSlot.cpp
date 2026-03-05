@@ -402,11 +402,10 @@ void CameraSlot::startStream() {
     m_currentFps = 0.0;
     m_fpsTimer.restart();
     
-    // Reset video item to ensure clean state for new source
-    // This creates a fresh QGraphicsVideoItem because reusing one across
-    // different QMediaCaptureSession instances doesn't work properly
-    qDebug() << "  Resetting video item for clean state...";
-    m_videoWidget->resetVideoItem();
+    // DON'T reset video item - reuse the same one like test_qt_only does
+    // Resetting breaks the GStreamer pipeline on Linux USB capture cards
+    // Just clear the display and show connecting status
+    m_videoWidget->clear();
     updateStatusLabel("Connecting...", true);
     
     // Get the NEW video item for pipeline

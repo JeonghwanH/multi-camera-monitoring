@@ -7,6 +7,7 @@
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QDebug>
+#include <QTimer>
 
 namespace MCM {
 
@@ -110,10 +111,18 @@ void MonitoringScreen::clearSlots() {
 
 void MonitoringScreen::startAllStreams() {
     m_streaming = true;
-    for (CameraSlot* slot : m_slots) {
-        slot->startStream();
+    
+    // Stagger camera starts to prevent overwhelming USB/system resources
+    // Each camera gets 500ms to initialize before the next one starts
+    // This prevents "Failed to start video surface due to main thread blocked"
+    for (int i = 0; i < m_slots.size(); ++i) {
+        CameraSlot* slot = m_slots[i];
+        QTimer::singleShot(i * 500, slot, [slot]() {
+            slot->startStream();
+        });
     }
-    qDebug() << "MonitoringScreen: Started all streams";
+    
+    qDebug() << "MonitoringScreen: Scheduled staggered start for" << m_slots.size() << "streams (500ms intervals)";
 }
 
 void MonitoringScreen::stopAllStreams() {
