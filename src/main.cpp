@@ -76,6 +76,13 @@ int main(int argc, char *argv[]) {
     if (!std::getenv("QT_MEDIA_BACKEND")) {
         qputenv("QT_MEDIA_BACKEND", "ffmpeg");
     }
+    
+    // Configure hardware encoding priority (Qt FFmpeg backend)
+    // See: https://doc.qt.io/qt-6/advanced-ffmpeg-configuration.html
+    // Use CUDA (NVENC) only, skip VAAPI (Intel) which may fail
+    if (!std::getenv("QT_FFMPEG_ENCODING_HW_DEVICE_TYPES")) {
+        qputenv("QT_FFMPEG_ENCODING_HW_DEVICE_TYPES", "cuda");
+    }
 #endif
     
     // Set application attributes before creating QApplication
