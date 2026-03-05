@@ -63,10 +63,10 @@ void QtVideoRecorder::configureRecorder(QMediaRecorder* recorder) {
     format.setFileFormat(QMediaFormat::MPEG4);
     
 #ifdef Q_OS_LINUX
-    // On Linux with FFmpeg backend, let FFmpeg auto-negotiate codec
-    // H.264 via Qt's FFmpeg backend may not work properly
-    format.setVideoCodec(QMediaFormat::VideoCodec::Unspecified);
-    qDebug() << "QtVideoRecorder: Using MP4 with auto-negotiated codec (Linux/FFmpeg)";
+    // On Linux with FFmpeg backend, use MPEG4 (software encoding)
+    // H.264/VAAPI may fail if hardware encoding profile not available
+    format.setVideoCodec(QMediaFormat::VideoCodec::MPEG4);
+    qDebug() << "QtVideoRecorder: Using MP4/MPEG4 software codec (Linux/FFmpeg)";
 #else
     // Use H.264 codec - hardware accelerated on macOS/Windows
     format.setVideoCodec(QMediaFormat::VideoCodec::H264);
