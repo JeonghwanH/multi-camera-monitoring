@@ -17,15 +17,15 @@
     },
     "slots": [
         {
-            "source": "1",
-            "type": "wired"
-        },
-        {
-            "source": "1",
+            "source": "0",
             "type": "auto"
         },
         {
             "source": "1",
+            "type": "wired"
+        },
+        {
+            "source": "2",
             "type": "wired"
         },
         {
@@ -34,7 +34,7 @@
         },
         {
             "source": "4",
-            "type": "auto"
+            "type": "wired"
         },
         {
             "source": "5",

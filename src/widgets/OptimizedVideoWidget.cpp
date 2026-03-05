@@ -106,8 +106,18 @@ void OptimizedVideoWidget::resizeEvent(QResizeEvent* event) {
 }
 
 void OptimizedVideoWidget::onNativeSizeChanged(const QSizeF& size) {
-    qDebug() << "*** OptimizedVideoWidget::onNativeSizeChanged ***" << size;
-    qDebug() << "  VideoItem:" << m_videoItem << "previous nativeSize:" << m_nativeSize;
+    qDebug() << "★★★ OptimizedVideoWidget::onNativeSizeChanged ★★★" << size;
+    qDebug() << "  VideoItem:" << m_videoItem 
+             << "visible:" << (m_videoItem ? m_videoItem->isVisible() : false)
+             << "opacity:" << (m_videoItem ? m_videoItem->opacity() : 0);
+    qDebug() << "  Previous nativeSize:" << m_nativeSize;
+    qDebug() << "  VideoSink:" << (m_videoItem ? m_videoItem->videoSink() : nullptr);
+    
+    // This means VIDEO IS ACTUALLY BEING RENDERED
+    if (size.isValid() && !size.isEmpty()) {
+        qDebug() << "  ✓✓✓ VIDEO RENDERING CONFIRMED - native size:" << size;
+    }
+    
     m_nativeSize = size;
     fitVideoInView();
 }

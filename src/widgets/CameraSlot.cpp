@@ -14,6 +14,8 @@
 #include <QMouseEvent>
 #include <QResizeEvent>
 #include <QDebug>
+#include <QElapsedTimer>
+#include <QThread>
 #include <cstdlib>
 
 namespace MCM {
@@ -376,8 +378,12 @@ void CameraSlot::showRtspInputDialog() {
 }
 
 void CameraSlot::startStream() {
+    QElapsedTimer timer;
+    timer.start();
+    
     qDebug() << "########## CameraSlot" << m_slotIndex << "startStream() ##########";
     qDebug() << "  m_streaming:" << m_streaming;
+    qDebug() << "  Thread:" << QThread::currentThread();
     
     if (m_streaming) {
         qDebug() << "  Already streaming, returning early";
@@ -410,9 +416,11 @@ void CameraSlot::startStream() {
     
     // Get the NEW video item for pipeline
     QGraphicsVideoItem* videoItem = m_videoWidget->videoItem();
-    qDebug() << "  VideoWidget videoItem:" << videoItem;
+    qDebug() << "  [" << timer.elapsed() << "ms] VideoWidget videoItem:" << videoItem;
     qDebug() << "  VideoItem size:" << (videoItem ? videoItem->size() : QSizeF());
     qDebug() << "  VideoItem nativeSize:" << (videoItem ? videoItem->nativeSize() : QSizeF());
+    qDebug() << "  VideoItem visible:" << (videoItem ? videoItem->isVisible() : false);
+    qDebug() << "  VideoItem videoSink:" << (videoItem ? videoItem->videoSink() : nullptr);
     
     // Start appropriate capture with direct GPU pipeline
     if (slotConfig.type == SourceType::Rtsp) {
@@ -431,7 +439,9 @@ void CameraSlot::startStream() {
         
         // Use DeviceDetector to get the actual QCameraDevice by filtered index
         // This handles Linux V4L2 metadata node filtering and sequential numbering
+        qDebug() << "  [" << timer.elapsed() << "ms] Getting camera device from DeviceDetector...";
         QCameraDevice cameraDevice = m_deviceDetector->cameraDeviceByIndex(deviceIndex);
+        qDebug() << "  [" << timer.elapsed() << "ms] Got camera device";
         
         if (cameraDevice.isNull()) {
             qDebug() << "  Device index" << deviceIndex << "not available";
@@ -446,13 +456,16 @@ void CameraSlot::startStream() {
         
         // Match test_qt_only approach: setCameraDevice -> setVideoOutput -> start()
         // Keep it simple and immediate like the working test code
+        qDebug() << "  [" << timer.elapsed() << "ms] Calling setCameraDevice...";
         m_cameraCapture->setCameraDevice(cameraDevice);
+        qDebug() << "  [" << timer.elapsed() << "ms] Calling setVideoOutput...";
         m_cameraCapture->setVideoOutput(videoItem);
+        qDebug() << "  [" << timer.elapsed() << "ms] Calling start...";
         m_cameraCapture->start();
-        qDebug() << "  Camera started";
+        qDebug() << "  [" << timer.elapsed() << "ms] Camera started";
     }
     
-    qDebug() << "########## CameraSlot" << m_slotIndex << "startStream() DONE ##########";
+    qDebug() << "########## CameraSlot" << m_slotIndex << "startStream() DONE - total:" << timer.elapsed() << "ms ##########";
 }
 
 void CameraSlot::stopStream() {
