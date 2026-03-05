@@ -130,9 +130,17 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
             this, &QtCameraCapture::onCameraErrorOccurred);
     
     // Set camera to capture session
-    qDebug() << "  [" << timer.elapsed() << "ms] Setting camera to session...";
+    // WARNING: This call can block for 1-4 seconds on Linux with USB capture cards!
+    // It triggers GStreamer pipeline negotiation which is synchronous.
+    qDebug() << "  [" << timer.elapsed() << "ms] Setting camera to session (may block)...";
     m_session->setCamera(m_camera);
     qDebug() << "  [" << timer.elapsed() << "ms] Camera set to session";
+    
+    // CRITICAL: Process events after the blocking setCamera() call
+    // This allows video surfaces for OTHER cameras to initialize
+    // Without this, "Failed to start video surface due to main thread blocked" occurs
+    QCoreApplication::processEvents();
+    qDebug() << "  [" << timer.elapsed() << "ms] Events processed after setCamera";
     
     // Configure camera format (prefer 720p @ 30fps for performance)
     auto formats = device.videoFormats();
@@ -166,6 +174,9 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
         m_camera->setCameraFormat(bestFormat);
         qDebug() << "  [" << timer.elapsed() << "ms] Selected format:" << bestFormat.resolution() 
                  << "@" << bestFormat.maxFrameRate() << "fps";
+        
+        // Process events after format change to allow other video surfaces to initialize
+        QCoreApplication::processEvents();
     }
     
     // Restore video output if it was set (like test_qt_only does)
@@ -264,6 +275,11 @@ void QtCameraCapture::start() {
     
     // Log camera state
     qDebug() << "  Camera error:" << m_camera->error() << m_camera->errorString();
+    
+    // Process events to allow video surface to receive first frames
+    // This is critical for allowing GStreamer to complete pipeline setup
+    QCoreApplication::processEvents();
+    qDebug() << "  [" << timer.elapsed() << "ms] Events processed after start";
 }
 
 void QtCameraCapture::stop() {
