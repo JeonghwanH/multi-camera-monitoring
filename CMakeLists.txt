@@ -311,3 +311,27 @@ target_link_libraries(test_backend PRIVATE
     Qt6::Multimedia
     Qt6::MultimediaWidgets
 )
+
+# Test hardware encoding capabilities
+add_executable(test_encoding
+    test_encoding.cpp
+)
+
+target_link_libraries(test_encoding PRIVATE
+    Qt6::Widgets
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
+)
+
+if(APPLE)
+    target_link_libraries(test_encoding PRIVATE
+        ${QT_DARWIN_CAMERA_PERMISSION_PLUGIN}
+        "-framework AVFoundation"
+    )
+    
+    set_target_properties(test_encoding PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER com.test.encoding
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
+    )
+endif()
