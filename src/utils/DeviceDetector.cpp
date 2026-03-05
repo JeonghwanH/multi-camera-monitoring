@@ -1,79 +1,6 @@
 #include "DeviceDetector.h"
 #include <QDebug>
 #include <QMediaDevices>
-#include <QDir>
-#include <QFile>
-#include <algorithm>
-#include <cstring>
-#include <cstdlib>
-
-#ifdef Q_OS_LINUX
-#include <cerrno>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/ioctl.h>
-#include <linux/videodev2.h>
-#endif
-
-namespace {
-#ifdef Q_OS_LINUX
-struct V4L2DeviceInfo {
-    QString path;       // e.g., "/dev/video0"
-    QString card;       // e.g., "AV.io SDI+"
-    QString busInfo;    // e.g., "usb-0000:80:14.0-2"
-    bool isCapture;
-};
-
-// Get V4L2 device info
-V4L2DeviceInfo getV4L2DeviceInfo(const QString& devicePath) {
-    V4L2DeviceInfo info;
-    info.path = devicePath;
-    info.isCapture = false;
-    
-    int fd = open(devicePath.toUtf8().constData(), O_RDWR | O_NONBLOCK);
-    if (fd < 0) {
-        return info;
-    }
-    
-    struct v4l2_capability cap;
-    memset(&cap, 0, sizeof(cap));
-    
-    if (ioctl(fd, VIDIOC_QUERYCAP, &cap) == 0) {
-        info.card = QString::fromUtf8((const char*)cap.card);
-        info.busInfo = QString::fromUtf8((const char*)cap.bus_info);
-        
-        __u32 caps = (cap.capabilities & V4L2_CAP_DEVICE_CAPS) ? cap.device_caps : cap.capabilities;
-        info.isCapture = (caps & V4L2_CAP_VIDEO_CAPTURE) || (caps & V4L2_CAP_VIDEO_CAPTURE_MPLANE);
-        
-        // Exclude metadata-only devices
-        bool isMetaOnly = (caps & V4L2_CAP_META_CAPTURE) && !info.isCapture;
-        if (isMetaOnly) {
-            info.isCapture = false;
-        }
-    }
-    
-    close(fd);
-    return info;
-}
-
-// Count V4L2 capture-only devices (for verification)
-int countV4L2CaptureDevices() {
-    int count = 0;
-    
-    for (int i = 0; i < 32; ++i) {
-        QString path = QString("/dev/video%1").arg(i);
-        if (!QFile::exists(path)) continue;
-        
-        V4L2DeviceInfo info = getV4L2DeviceInfo(path);
-        if (info.isCapture) {
-            count++;
-        }
-    }
-    
-    return count;
-}
-#endif
-} // anonymous namespace
 
 namespace MCM {
 
@@ -97,61 +24,13 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
     
     qDebug() << "DeviceDetector: Qt reports" << qtTotalCount << "total devices";
     
-#ifdef Q_OS_LINUX
     // ========================================
-    // Linux: Check backend type first
+    // Use all Qt devices directly
     // ========================================
-    const char* backendEnv = std::getenv("QT_MEDIA_BACKEND");
-    bool isFFmpegBackend = backendEnv && QString(backendEnv).toLower() == "ffmpeg";
-    
-    int captureCount;
-    
-    if (isFFmpegBackend) {
-        // ========================================
-        // FFmpeg backend: All Qt devices are captures
-        // ========================================
-        // FFmpeg only reports capture devices, not metadata
-        // Device ID is the actual path (e.g., "/dev/video1")
-        captureCount = qtTotalCount;
-        qDebug() << "DeviceDetector: FFmpeg backend - using ALL" << captureCount << "Qt devices";
-    } else {
-        // ========================================
-        // GStreamer/other backend: First half are captures
-        // ========================================
-        // GStreamer reports both capture and metadata devices
-        // First half = captures, second half = metadata
-        // Use V4L2 count for verification
-        
-        captureCount = qtTotalCount / 2;  // Default: first half are captures
-        
-        // V4L2 count for verification
-        int v4l2Count = countV4L2CaptureDevices();
-        
-        qDebug() << "DeviceDetector: GStreamer backend - V4L2 captures:" << v4l2Count << ", Qt total:" << qtTotalCount;
-        
-        if (qtTotalCount / 2 == v4l2Count) {
-            // Perfect match
-            captureCount = v4l2Count;
-            qDebug() << "DeviceDetector: ✓ MATCH - using" << captureCount << "capture devices";
-        } else if (v4l2Count == qtTotalCount / 2 + 1) {
-            // Qt missed one device
-            captureCount = v4l2Count;
-            qDebug() << "DeviceDetector: ⚠ Qt missed 1 device - using V4L2 count:" << captureCount;
-        } else if (v4l2Count > qtTotalCount / 2 + 1) {
-            // Qt still loading
-            qDebug() << "DeviceDetector: ⏳ Qt still loading - using Qt count:" << captureCount;
-        } else {
-            qDebug() << "DeviceDetector: ? Unusual counts - using Qt first half:" << captureCount;
-        }
-    }
-#else
-    // ========================================
-    // macOS/Windows: Use all Qt devices directly
-    // ========================================
-    // Qt only reports real cameras, no metadata devices
+    // On Linux with FFmpeg backend (default): Qt reports only capture devices
+    // On macOS/Windows: Qt reports only real cameras
     int captureCount = qtTotalCount;
-    qDebug() << "DeviceDetector: Non-Linux - using all" << captureCount << "Qt devices";
-#endif
+    qDebug() << "DeviceDetector: Using all" << captureCount << "Qt devices";
     
     // Log all Qt devices
     qDebug() << "=== Qt Device List ===";
