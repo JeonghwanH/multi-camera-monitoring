@@ -50,6 +50,9 @@ CameraSlot::CameraSlot(int slotIndex, DeviceDetector* detector, QWidget* parent)
         if (m_sourceItems[i].type == slotConfig.type && 
             m_sourceItems[i].source == slotConfig.source) {
             m_sourceSelector->setCurrentIndex(i);
+            // Also update m_currentSourceType since signals are blocked
+            m_currentSourceType = slotConfig.type;
+            m_currentSource = slotConfig.source;
             break;
         }
     }
@@ -265,6 +268,9 @@ void CameraSlot::refreshDeviceList() {
         if (m_sourceItems[i].type == currentItem.type && 
             m_sourceItems[i].source == currentItem.source) {
             m_sourceSelector->setCurrentIndex(i);
+            // Also update m_currentSourceType since signals are blocked
+            m_currentSourceType = currentItem.type;
+            m_currentSource = currentItem.source;
             break;
         }
     }
