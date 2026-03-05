@@ -55,11 +55,12 @@ QVideoSink* OptimizedVideoWidget::videoSink() const {
 }
 
 void OptimizedVideoWidget::clear() {
-    qDebug() << "OptimizedVideoWidget::clear() - resetting video item";
-    // Reset the video item to clear display
-    // The background brush will show through
+    qDebug() << "OptimizedVideoWidget::clear() - clearing state only";
+    // Just reset our tracking state, don't touch the video item
+    // Setting size to 0 breaks GStreamer video surface on Linux
+    // The video item will be overwritten when new frames arrive
     m_nativeSize = QSizeF();
-    m_videoItem->setSize(QSizeF(0, 0));
+    // DON'T call m_videoItem->setSize() - breaks rendering on Linux!
 }
 
 void OptimizedVideoWidget::resetVideoItem() {

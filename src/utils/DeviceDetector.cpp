@@ -91,23 +91,22 @@ DeviceDetector::~DeviceDetector() {
 QList<DeviceInfo> DeviceDetector::detectDevices() {
     QList<DeviceInfo> devices;
     
-    // ========================================
-    // Qt-Only Approach with V4L2 Verification
-    // ========================================
-    // 1. Use Qt devices directly (first half = captures)
-    // 2. V4L2 count only for verification
-    // 3. No complex mapping needed
-    
     QList<QCameraDevice> qtDevices = QMediaDevices::videoInputs();
     int qtTotalCount = qtDevices.size();
     
     qDebug() << "DeviceDetector: Qt reports" << qtTotalCount << "total devices";
     
-    // Determine capture count
+#ifdef Q_OS_LINUX
+    // ========================================
+    // Linux: Qt-Only Approach with V4L2 Verification
+    // ========================================
+    // On Linux, Qt reports both capture and metadata devices
+    // First half = captures, second half = metadata
+    // Use V4L2 count for verification
+    
     int captureCount = qtTotalCount / 2;  // Default: first half are captures
     
-#ifdef Q_OS_LINUX
-    // V4L2 count for verification (don't block - just count quickly)
+    // V4L2 count for verification
     int v4l2Count = countV4L2CaptureDevices();
     
     qDebug() << "DeviceDetector: V4L2 captures:" << v4l2Count << ", Qt total:" << qtTotalCount;
@@ -127,7 +126,12 @@ QList<DeviceInfo> DeviceDetector::detectDevices() {
         qDebug() << "DeviceDetector: ? Unusual counts - using Qt first half:" << captureCount;
     }
 #else
-    qDebug() << "DeviceDetector: Non-Linux - using first" << captureCount << "Qt devices";
+    // ========================================
+    // macOS/Windows: Use all Qt devices directly
+    // ========================================
+    // Qt only reports real cameras, no metadata devices
+    int captureCount = qtTotalCount;
+    qDebug() << "DeviceDetector: Non-Linux - using all" << captureCount << "Qt devices";
 #endif
     
     // Log all Qt devices
