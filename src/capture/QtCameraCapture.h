@@ -145,6 +145,11 @@ private:
     QMediaCaptureSession* m_session{nullptr};
     QVideoSink* m_frameSink{nullptr};  // For frame access (recording)
     QObject* m_videoOutput{nullptr};   // Store for session recreation
+    
+    // Debug tracking
+    int m_frameCount{0};
+    qint64 m_lastFrameTime{0};
+    qint64 m_startRequestTime{0};
 };
 
 } // namespace MCM

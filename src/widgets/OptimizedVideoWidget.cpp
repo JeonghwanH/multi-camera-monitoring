@@ -55,11 +55,12 @@ QVideoSink* OptimizedVideoWidget::videoSink() const {
 }
 
 void OptimizedVideoWidget::clear() {
-    qDebug() << "OptimizedVideoWidget::clear() - resetting video item";
-    // Reset the video item to clear display
-    // The background brush will show through
+    qDebug() << "OptimizedVideoWidget::clear() - clearing state only";
+    // Just reset our tracking state, don't touch the video item
+    // Setting size to 0 breaks GStreamer video surface on Linux
+    // The video item will be overwritten when new frames arrive
     m_nativeSize = QSizeF();
-    m_videoItem->setSize(QSizeF(0, 0));
+    // DON'T call m_videoItem->setSize() - breaks rendering on Linux!
 }
 
 void OptimizedVideoWidget::resetVideoItem() {
@@ -105,8 +106,18 @@ void OptimizedVideoWidget::resizeEvent(QResizeEvent* event) {
 }
 
 void OptimizedVideoWidget::onNativeSizeChanged(const QSizeF& size) {
-    qDebug() << "*** OptimizedVideoWidget::onNativeSizeChanged ***" << size;
-    qDebug() << "  VideoItem:" << m_videoItem << "previous nativeSize:" << m_nativeSize;
+    qDebug() << "★★★ OptimizedVideoWidget::onNativeSizeChanged ★★★" << size;
+    qDebug() << "  VideoItem:" << m_videoItem 
+             << "visible:" << (m_videoItem ? m_videoItem->isVisible() : false)
+             << "opacity:" << (m_videoItem ? m_videoItem->opacity() : 0);
+    qDebug() << "  Previous nativeSize:" << m_nativeSize;
+    qDebug() << "  VideoSink:" << (m_videoItem ? m_videoItem->videoSink() : nullptr);
+    
+    // This means VIDEO IS ACTUALLY BEING RENDERED
+    if (size.isValid() && !size.isEmpty()) {
+        qDebug() << "  ✓✓✓ VIDEO RENDERING CONFIRMED - native size:" << size;
+    }
+    
     m_nativeSize = size;
     fitVideoInView();
 }

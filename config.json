@@ -5,11 +5,11 @@
         "minMaintenance": 10
     },
     "grid": {
-        "columns": 2,
+        "columns": 4,
         "rows": 2
     },
     "recording": {
-        "chunkDurationSeconds": 10,
+        "chunkDurationSeconds": 60,
         "codec": "mp4v",
         "enabled": true,
         "fps": 30,
@@ -22,15 +22,31 @@
         },
         {
             "source": "1",
-            "type": "auto"
+            "type": "wired"
         },
         {
             "source": "2",
-            "type": "auto"
+            "type": "wired"
         },
         {
             "source": "3",
             "type": "wired"
+        },
+        {
+            "source": "4",
+            "type": "wired"
+        },
+        {
+            "source": "5",
+            "type": "auto"
+        },
+        {
+            "source": "6",
+            "type": "auto"
+        },
+        {
+            "source": "7",
+            "type": "auto"
         }
     ]
 }

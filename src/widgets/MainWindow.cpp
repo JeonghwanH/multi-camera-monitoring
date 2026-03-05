@@ -82,7 +82,8 @@ void MainWindow::showHomeScreen() {
 
 void MainWindow::showMonitoringScreen() {
     m_stackedWidget->setCurrentWidget(m_monitoringScreen);
-    m_monitoringScreen->startAllStreams();
+    // DON'T auto-start streams - let user manually select sources and start
+    // m_monitoringScreen->startAllStreams();
 }
 
 void MainWindow::showSettingsScreen() {

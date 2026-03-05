@@ -5,6 +5,7 @@
 #include <QTimer>
 #include <QList>
 #include <QString>
+#include <QCameraDevice>
 
 namespace MCM {
 
@@ -12,12 +13,19 @@ namespace MCM {
  * @brief Information about a detected video device
  */
 struct DeviceInfo {
-    int index;           // Device index (0, 1, 2, ...)
+    int index;           // Sequential index (0, 1, 2, ...) - our filtered numbering
     QString name;        // Human-readable device name
+    QString deviceId;    // Qt device ID (used to retrieve actual QCameraDevice)
+    QString devicePath;  // Linux: actual /dev/video* path; other platforms: empty
+    QString busInfo;     // Linux: USB bus info for unique identification; other platforms: empty
     bool available;      // Whether device is currently available
     
     bool operator==(const DeviceInfo& other) const {
-        return index == other.index && name == other.name;
+        // On Linux, compare by bus_info (unique physical device)
+        if (!busInfo.isEmpty() && !other.busInfo.isEmpty()) {
+            return busInfo == other.busInfo;
+        }
+        return index == other.index && deviceId == other.deviceId;
     }
 };
 
@@ -25,6 +33,7 @@ struct DeviceInfo {
  * @brief Monitors for camera device connection/disconnection
  * 
  * Uses platform-specific APIs to detect available video devices.
+ * On Linux, filters out metadata nodes and only includes actual video capture devices.
  * Can poll periodically to detect changes.
  */
 class DeviceDetector : public QObject {
@@ -35,8 +44,8 @@ public:
     ~DeviceDetector();
 
     /**
-     * @brief Detect all available video devices
-     * @return List of detected devices
+     * @brief Detect all available video devices (filtered, sequential indexing)
+     * @return List of detected devices with sequential indices
      */
     QList<DeviceInfo> detectDevices();
 
@@ -65,6 +74,18 @@ public:
      * @brief Get device name by index
      */
     QString deviceName(int index) const;
+
+    /**
+     * @brief Get QCameraDevice by our filtered index
+     * @param index Our sequential index (0, 1, 2, ...)
+     * @return QCameraDevice or null device if not found
+     */
+    QCameraDevice cameraDeviceByIndex(int index) const;
+
+    /**
+     * @brief Get the total count of available (filtered) devices
+     */
+    int deviceCount() const { return m_lastKnownDevices.size(); }
 
     /**
      * @brief Get maximum number of devices to check
@@ -112,4 +133,3 @@ private:
 Q_DECLARE_METATYPE(QList<MCM::DeviceInfo>)
 
 #endif // DEVICEDETECTOR_H
-

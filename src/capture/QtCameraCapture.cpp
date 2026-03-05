@@ -3,12 +3,18 @@
 #include <QDebug>
 #include <QCameraFormat>
 #include <QGraphicsVideoItem>
+#include <QElapsedTimer>
+#include <QThread>
+#include <QCoreApplication>
+#include <QDateTime>
 
 namespace MCM {
 
 QtCameraCapture::QtCameraCapture(int slotId, QObject* parent)
     : QObject(parent)
     , m_slotId(slotId)
+    , m_frameCount(0)
+    , m_lastFrameTime(QDateTime::currentMSecsSinceEpoch())
 {
     // Create capture session (manages the pipeline)
     m_session = new QMediaCaptureSession(this);
@@ -17,6 +23,10 @@ QtCameraCapture::QtCameraCapture(int slotId, QObject* parent)
     m_frameSink = new QVideoSink(this);
     connect(m_frameSink, &QVideoSink::videoFrameChanged,
             this, &QtCameraCapture::onVideoFrameChanged);
+    
+    qDebug() << "QtCameraCapture::Constructor slot" << m_slotId 
+             << "thread:" << QThread::currentThread()
+             << "main:" << QCoreApplication::instance()->thread();
 }
 
 QtCameraCapture::~QtCameraCapture() {
@@ -70,47 +80,48 @@ void QtCameraCapture::setCameraDevice(const QCameraDevice& device) {
 }
 
 void QtCameraCapture::setupCamera(const QCameraDevice& device) {
+    QElapsedTimer timer;
+    timer.start();
+    
     qDebug() << "=== QtCameraCapture::setupCamera START ===" << "slot" << m_slotId;
     qDebug() << "  Device:" << device.description() << "ID:" << device.id();
+    qDebug() << "  Thread:" << QThread::currentThread() 
+             << "isMainThread:" << (QThread::currentThread() == QCoreApplication::instance()->thread());
     
-    // Don't store old video output - we always get a fresh one from CameraSlot
-    // after resetVideoItem() creates a new QGraphicsVideoItem
-    qDebug() << "  Clearing stored video output (will be set fresh)";
-    m_videoOutput = nullptr;
+    // Reset frame counter for new camera
+    m_frameCount = 0;
+    m_lastFrameTime = QDateTime::currentMSecsSinceEpoch();
     
-    // Full cleanup - delete camera and session
+    // Store video output to restore after camera swap (like test_qt_only approach)
+    QObject* savedVideoOutput = m_videoOutput;
+    
+    // Stop and delete old camera only (KEEP the session - this is key!)
     if (m_camera) {
-        qDebug() << "  Stopping and deleting old camera...";
-        // Disconnect signals first to avoid callbacks during destruction
+        qDebug() << "  [" << timer.elapsed() << "ms] Stopping and deleting old camera...";
         disconnect(m_camera, nullptr, this, nullptr);
         if (m_camera->isActive()) {
             m_camera->stop();
         }
+        m_session->setCamera(nullptr);  // Disconnect from session before delete
         delete m_camera;
         m_camera = nullptr;
-    }
-    if (m_session) {
-        // IMPORTANT: Disconnect video output BEFORE deleting session
-        // This prevents QGraphicsVideoItem from getting into an inconsistent state
-        qDebug() << "  Clearing video output from old session...";
-        m_session->setVideoOutput(nullptr);
-        qDebug() << "  Deleting old session...";
-        delete m_session;
-        m_session = nullptr;
+        qDebug() << "  [" << timer.elapsed() << "ms] Old camera deleted";
     }
     
     // Reset connected state for clean start
     m_connected = false;
     
-    qDebug() << "  Creating NEW session and camera for slot" << m_slotId;
-    
-    // Create FRESH session (identical to constructor)
-    m_session = new QMediaCaptureSession(this);
-    qDebug() << "  NEW session created:" << m_session;
+    // Reuse existing session or create if needed (first time)
+    if (!m_session) {
+        qDebug() << "  [" << timer.elapsed() << "ms] Creating session for slot" << m_slotId;
+        m_session = new QMediaCaptureSession(this);
+    }
+    qDebug() << "  Using session:" << m_session;
     
     // Create new camera
+    qDebug() << "  [" << timer.elapsed() << "ms] Creating QCamera...";
     m_camera = new QCamera(device, this);
-    qDebug() << "  NEW camera created:" << m_camera;
+    qDebug() << "  [" << timer.elapsed() << "ms] NEW camera created:" << m_camera;
     
     // Connect camera signals
     connect(m_camera, &QCamera::activeChanged,
@@ -119,10 +130,17 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
             this, &QtCameraCapture::onCameraErrorOccurred);
     
     // Set camera to capture session
+    // WARNING: This call can block for 1-4 seconds on Linux with USB capture cards!
+    // It triggers GStreamer pipeline negotiation which is synchronous.
+    qDebug() << "  [" << timer.elapsed() << "ms] Setting camera to session (may block)...";
     m_session->setCamera(m_camera);
-    qDebug() << "  Camera set to session";
-    qDebug() << "  Video output will be set later via setVideoOutput()";
-    qDebug() << "  Frame access will be connected to video item's sink";
+    qDebug() << "  [" << timer.elapsed() << "ms] Camera set to session";
+    
+    // CRITICAL: Process events after the blocking setCamera() call
+    // This allows video surfaces for OTHER cameras to initialize
+    // Without this, "Failed to start video surface due to main thread blocked" occurs
+    QCoreApplication::processEvents();
+    qDebug() << "  [" << timer.elapsed() << "ms] Events processed after setCamera";
     
     // Configure camera format (prefer 720p @ 30fps for performance)
     auto formats = device.videoFormats();
@@ -133,19 +151,14 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
         QSize res = format.resolution();
         float fps = format.maxFrameRate();
         
-        // Score based on: prefer 720p, then 1080p, then others
-        // Also prefer 30fps
         int score = 0;
-        
         if (res.height() == 720) {
-            score += 1000;  // Prefer 720p (good balance)
+            score += 1000;
         } else if (res.height() == 1080) {
-            score += 500;   // 1080p is okay too
+            score += 500;
         } else if (res.height() >= 480 && res.height() <= 1080) {
-            score += 100;   // Acceptable range
+            score += 100;
         }
-        
-        // Prefer ~30 fps
         if (fps >= 25 && fps <= 35) {
             score += 100;
         }
@@ -157,14 +170,25 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
     }
     
     if (!bestFormat.isNull()) {
+        qDebug() << "  [" << timer.elapsed() << "ms] Setting camera format...";
         m_camera->setCameraFormat(bestFormat);
-        qDebug() << "  Selected format:" << bestFormat.resolution() 
+        qDebug() << "  [" << timer.elapsed() << "ms] Selected format:" << bestFormat.resolution() 
                  << "@" << bestFormat.maxFrameRate() << "fps";
-    } else {
-        qDebug() << "  WARNING: No suitable format found, using default";
+        
+        // Process events after format change to allow other video surfaces to initialize
+        QCoreApplication::processEvents();
     }
     
-    qDebug() << "=== QtCameraCapture::setupCamera END ===" << "slot" << m_slotId;
+    // Restore video output if it was set (like test_qt_only does)
+    if (savedVideoOutput) {
+        qDebug() << "  [" << timer.elapsed() << "ms] Restoring video output...";
+        m_session->setVideoOutput(savedVideoOutput);
+        m_videoOutput = savedVideoOutput;
+        qDebug() << "  [" << timer.elapsed() << "ms] Restored video output:" << savedVideoOutput;
+    }
+    
+    qDebug() << "=== QtCameraCapture::setupCamera END ===" << "slot" << m_slotId 
+             << "total:" << timer.elapsed() << "ms";
 }
 
 void QtCameraCapture::cleanupCamera() {
@@ -213,8 +237,14 @@ void QtCameraCapture::setVideoSink(QVideoSink* sink) {
 }
 
 void QtCameraCapture::start() {
+    QElapsedTimer timer;
+    timer.start();
+    m_startRequestTime = QDateTime::currentMSecsSinceEpoch();
+    
     qDebug() << "=== QtCameraCapture::start ===" << "slot" << m_slotId;
     qDebug() << "  Camera:" << m_camera << "Session:" << m_session << "VideoOutput:" << m_videoOutput;
+    qDebug() << "  Thread:" << QThread::currentThread()
+             << "isMainThread:" << (QThread::currentThread() == QCoreApplication::instance()->thread());
     
     if (!m_camera) {
         qWarning() << "  ERROR: No camera set, cannot start";
@@ -228,11 +258,28 @@ void QtCameraCapture::start() {
     
     if (!m_videoOutput) {
         qWarning() << "  WARNING: No video output set - frames won't be displayed!";
+    } else {
+        QGraphicsVideoItem* videoItem = qobject_cast<QGraphicsVideoItem*>(m_videoOutput);
+        if (videoItem) {
+            qDebug() << "  VideoItem state: size=" << videoItem->size() 
+                     << "nativeSize=" << videoItem->nativeSize()
+                     << "visible=" << videoItem->isVisible()
+                     << "opacity=" << videoItem->opacity();
+        }
     }
     
-    qDebug() << "  Calling m_camera->start()...";
+    // Start immediately like test_qt_only does
+    qDebug() << "  [" << timer.elapsed() << "ms] Calling m_camera->start()...";
     m_camera->start();
-    qDebug() << "  Camera start() called, active:" << m_camera->isActive();
+    qDebug() << "  [" << timer.elapsed() << "ms] Camera start() returned, active:" << m_camera->isActive();
+    
+    // Log camera state
+    qDebug() << "  Camera error:" << m_camera->error() << m_camera->errorString();
+    
+    // Process events to allow video surface to receive first frames
+    // This is critical for allowing GStreamer to complete pipeline setup
+    QCoreApplication::processEvents();
+    qDebug() << "  [" << timer.elapsed() << "ms] Events processed after start";
 }
 
 void QtCameraCapture::stop() {
@@ -261,16 +308,21 @@ bool QtCameraCapture::isActive() const {
 }
 
 void QtCameraCapture::onCameraActiveChanged(bool active) {
+    qint64 now = QDateTime::currentMSecsSinceEpoch();
+    qint64 timeSinceStart = m_startRequestTime > 0 ? (now - m_startRequestTime) : 0;
+    
     qDebug() << "*** QtCameraCapture::onCameraActiveChanged ***" << "slot" << m_slotId
-             << "active:" << active << "was_connected:" << m_connected;
+             << "active:" << active << "was_connected:" << m_connected
+             << "timeSinceStart:" << timeSinceStart << "ms"
+             << "framesReceived:" << m_frameCount;
     
     if (active && !m_connected) {
         m_connected = true;
-        qDebug() << "  Emitting connectionEstablished signal";
+        qDebug() << "  ✓ Camera ACTIVE for slot" << m_slotId << "- emitting connectionEstablished";
         emit connectionEstablished();
     } else if (!active && m_connected) {
         m_connected = false;
-        qDebug() << "  Emitting connectionLost signal";
+        qDebug() << "  ✗ Camera INACTIVE for slot" << m_slotId << "- emitting connectionLost";
         emit connectionLost();
     }
 }
@@ -288,14 +340,29 @@ void QtCameraCapture::onCameraErrorOccurred(QCamera::Error error, const QString&
 }
 
 void QtCameraCapture::onVideoFrameChanged(const QVideoFrame& frame) {
-    // Debug: Log first few frames to confirm pipeline is working
-    static int frameCount = 0;
-    if (frameCount < 5) {
-        qDebug() << "QtCameraCapture::onVideoFrameChanged slot" << m_slotId
-                 << "frame#" << frameCount << "valid:" << frame.isValid()
-                 << "size:" << frame.size();
-        frameCount++;
+    qint64 now = QDateTime::currentMSecsSinceEpoch();
+    
+    // Log first 10 frames AND every 100th frame with timing info
+    if (m_frameCount < 10 || (m_frameCount % 100 == 0)) {
+        qint64 timeSinceStart = m_startRequestTime > 0 ? (now - m_startRequestTime) : 0;
+        qint64 timeSinceLastFrame = now - m_lastFrameTime;
+        
+        qDebug() << "*** FRAME RECEIVED *** slot" << m_slotId
+                 << "frame#" << m_frameCount 
+                 << "valid:" << frame.isValid()
+                 << "size:" << frame.size()
+                 << "sinceStart:" << timeSinceStart << "ms"
+                 << "interval:" << timeSinceLastFrame << "ms";
+        
+        // First frame is especially important - log more details
+        if (m_frameCount == 0) {
+            qDebug() << "  ★★★ FIRST FRAME for slot" << m_slotId << "★★★"
+                     << "Time from start() to first frame:" << timeSinceStart << "ms";
+        }
     }
+    
+    m_frameCount++;
+    m_lastFrameTime = now;
     
     // Emit frame for recording (if needed)
     if (frame.isValid()) {

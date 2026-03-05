@@ -80,6 +80,15 @@ fi
 # Set library paths for Linux
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     export LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
+    
+    # Use FFmpeg backend by default on Linux (better than GStreamer for multi-camera)
+    # Override with: QT_MEDIA_BACKEND=gstreamer ./run.sh
+    if [[ -z "$QT_MEDIA_BACKEND" ]]; then
+        export QT_MEDIA_BACKEND=ffmpeg
+        print_status "Using FFmpeg backend (set QT_MEDIA_BACKEND=gstreamer to change)"
+    else
+        print_status "Using $QT_MEDIA_BACKEND backend"
+    fi
 fi
 
 echo ""

@@ -45,6 +45,7 @@ signals:
 private slots:
     void onSlotDoubleClicked(int slotIndex);
     void onDevicesChanged();
+    void onPlayButtonClicked();
 
 private:
     void setupUi();
@@ -54,6 +55,7 @@ private:
     QGridLayout* m_gridLayout;
     QVector<CameraSlot*> m_slots;
     QPushButton* m_backButton;
+    QPushButton* m_playButton;
     DeviceDetector* m_deviceDetector;
     
     bool m_streaming{false};

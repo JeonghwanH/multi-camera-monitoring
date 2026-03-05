@@ -143,6 +143,7 @@ private:
     int m_chunkNumber{0};
     QDateTime m_chunkStartTime;
     QString m_currentFilename;
+    int m_consecutiveErrors{0};  // Track errors to disable problematic sources
     
     QTimer* m_chunkTimer{nullptr};
     

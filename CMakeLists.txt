@@ -217,3 +217,121 @@ if(APPLE)
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
     )
 endif()
+
+# Module test executable - uses actual DeviceDetector, QtCameraCapture, OptimizedVideoWidget
+add_executable(test_modules
+    test_modules.cpp
+    src/utils/DeviceDetector.cpp
+    src/capture/QtCameraCapture.cpp
+    src/widgets/OptimizedVideoWidget.cpp
+    src/core/Config.cpp
+)
+
+target_include_directories(test_modules PRIVATE
+    ${CMAKE_SOURCE_DIR}
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(test_modules PRIVATE
+    Qt6::Widgets
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
+)
+
+# macOS-specific for test_modules
+if(APPLE)
+    target_link_libraries(test_modules PRIVATE
+        ${QT_DARWIN_CAMERA_PERMISSION_PLUGIN}
+        "-framework AVFoundation"
+    )
+    
+    set_target_properties(test_modules PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER com.test.modules
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
+    )
+endif()
+
+# Test Qt devices directly (no V4L2 mapping)
+add_executable(test_qt_devices
+    test_qt_devices.cpp
+)
+
+target_link_libraries(test_qt_devices PRIVATE
+    Qt6::Widgets
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
+)
+
+# macOS-specific for test_qt_devices
+if(APPLE)
+    target_link_libraries(test_qt_devices PRIVATE
+        ${QT_DARWIN_CAMERA_PERMISSION_PLUGIN}
+        "-framework AVFoundation"
+    )
+    
+    set_target_properties(test_qt_devices PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER com.test.qtdevices
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
+    )
+endif()
+
+# Test Qt-only with V4L2 verification
+add_executable(test_qt_only
+    test_qt_only.cpp
+)
+
+target_link_libraries(test_qt_only PRIVATE
+    Qt6::Widgets
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
+)
+
+if(APPLE)
+    target_link_libraries(test_qt_only PRIVATE
+        ${QT_DARWIN_CAMERA_PERMISSION_PLUGIN}
+        "-framework AVFoundation"
+    )
+    
+    set_target_properties(test_qt_only PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER com.test.qtonly
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
+    )
+endif()
+
+# Test backend device enumeration (FFmpeg vs GStreamer comparison)
+add_executable(test_backend
+    test_backend.cpp
+)
+
+target_link_libraries(test_backend PRIVATE
+    Qt6::Widgets
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
+)
+
+# Test hardware encoding capabilities
+add_executable(test_encoding
+    test_encoding.cpp
+)
+
+target_link_libraries(test_encoding PRIVATE
+    Qt6::Widgets
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
+)
+
+if(APPLE)
+    target_link_libraries(test_encoding PRIVATE
+        ${QT_DARWIN_CAMERA_PERMISSION_PLUGIN}
+        "-framework AVFoundation"
+    )
+    
+    set_target_properties(test_encoding PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER com.test.encoding
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
+    )
+endif()

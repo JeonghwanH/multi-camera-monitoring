@@ -7,12 +7,16 @@
 #include "core/QtVideoRecorder.h"
 #include "utils/DeviceDetector.h"
 
+#include <QCameraDevice>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QPainter>
 #include <QMouseEvent>
 #include <QResizeEvent>
+#include <QShowEvent>
 #include <QDebug>
+#include <QElapsedTimer>
+#include <QThread>
 #include <cstdlib>
 
 namespace MCM {
@@ -46,6 +50,9 @@ CameraSlot::CameraSlot(int slotIndex, DeviceDetector* detector, QWidget* parent)
         if (m_sourceItems[i].type == slotConfig.type && 
             m_sourceItems[i].source == slotConfig.source) {
             m_sourceSelector->setCurrentIndex(i);
+            // Also update m_currentSourceType since signals are blocked
+            m_currentSourceType = slotConfig.type;
+            m_currentSource = slotConfig.source;
             break;
         }
     }
@@ -112,6 +119,7 @@ void CameraSlot::setupUi() {
         "border-radius: 8px; "
         "padding: 10px 20px;"
     );
+    m_statusLabel->hide();  // Hide initially, show after layout is complete
     
     mainLayout->addWidget(m_videoWidget, 1);
     
@@ -220,16 +228,18 @@ void CameraSlot::updateSourceSelector() {
                          QString("Auto (Device %1)").arg(m_slotIndex)});
     m_sourceSelector->addItem(QString("Auto (Device %1)").arg(m_slotIndex));
     
-    // Wired devices (from Qt's QMediaDevices)
-    auto devices = QtCameraCapture::availableDevices();
-    for (int i = 0; i < devices.size(); ++i) {
-        QString displayText = QString("Wired %1: %2").arg(i).arg(devices[i].description());
-        m_sourceItems.append({SourceType::Wired, QString::number(i), displayText});
+    // Wired devices (from DeviceDetector - filtered to only include capture devices)
+    // On Linux, this excludes metadata nodes and provides sequential numbering
+    QList<DeviceInfo> devices = m_deviceDetector->lastKnownDevices();
+    for (const auto& device : devices) {
+        QString displayText = QString("Wired %1: %2").arg(device.index).arg(device.name);
+        m_sourceItems.append({SourceType::Wired, QString::number(device.index), displayText});
         m_sourceSelector->addItem(displayText);
     }
     
     // Add some wired options even if not detected (for manual selection)
-    for (int i = devices.size(); i < 8; ++i) {
+    int startIndex = devices.isEmpty() ? 0 : devices.last().index + 1;
+    for (int i = startIndex; i < 8; ++i) {
         QString displayText = QString("Wired %1").arg(i);
         m_sourceItems.append({SourceType::Wired, QString::number(i), displayText});
         m_sourceSelector->addItem(displayText);
@@ -251,14 +261,20 @@ void CameraSlot::refreshDeviceList() {
     
     updateSourceSelector();
     
-    // Try to restore selection
+    // Try to restore selection WITHOUT triggering stream start
+    // Block signals to prevent onSourceSelectorChanged from being called
+    m_sourceSelector->blockSignals(true);
     for (int i = 0; i < m_sourceItems.size(); ++i) {
         if (m_sourceItems[i].type == currentItem.type && 
             m_sourceItems[i].source == currentItem.source) {
             m_sourceSelector->setCurrentIndex(i);
+            // Also update m_currentSourceType since signals are blocked
+            m_currentSourceType = currentItem.type;
+            m_currentSource = currentItem.source;
             break;
         }
     }
+    m_sourceSelector->blockSignals(false);
 }
 
 void CameraSlot::onSourceSelectorChanged(int index) {
@@ -288,22 +304,31 @@ void CameraSlot::onSourceSelectorChanged(int index) {
     slotConfig.source = item.source;
     Config::instance().setSlot(m_slotIndex, slotConfig);
     
+    // Update current source type (for hasSourceSelected() check)
+    m_currentSourceType = item.type;
+    m_currentSource = item.source;
+    
     // Stop current stream if running
     qDebug() << "  Current m_streaming:" << m_streaming;
     if (m_streaming) {
         qDebug() << "  >>> STOPPING current stream <<<";
         stopStream();
-    }
-    
-    // Start new stream if source is valid (not None)
-    if (item.type != SourceType::None) {
-        qDebug() << "  >>> STARTING new stream <<<";
-        startStream();
+        
+        // If new source is valid, restart stream
+        if (item.type != SourceType::None) {
+            qDebug() << "  >>> RESTARTING with new source <<<";
+            startStream();
+        }
     } else {
-        qDebug() << "  Source is None, resetting video item for clean state";
-        // Reset video item when setting to None to ensure clean state
-        // This prevents stale QGraphicsVideoItem references
-        m_videoWidget->resetVideoItem();
+        // Not streaming - just update UI, don't auto-start
+        // User needs to click "Play All" button to start
+        if (item.type == SourceType::None) {
+            qDebug() << "  Source is None, showing No Signal";
+            updateStatusLabel("No Signal", true);
+        } else {
+            qDebug() << "  Source selected (not auto-starting, use Play All button)";
+            updateStatusLabel("Ready", true);
+        }
     }
     
     emit sourceChanged(m_slotIndex, item.type, item.source);
@@ -373,8 +398,12 @@ void CameraSlot::showRtspInputDialog() {
 }
 
 void CameraSlot::startStream() {
+    QElapsedTimer timer;
+    timer.start();
+    
     qDebug() << "########## CameraSlot" << m_slotIndex << "startStream() ##########";
     qDebug() << "  m_streaming:" << m_streaming;
+    qDebug() << "  Thread:" << QThread::currentThread();
     
     if (m_streaming) {
         qDebug() << "  Already streaming, returning early";
@@ -399,18 +428,19 @@ void CameraSlot::startStream() {
     m_currentFps = 0.0;
     m_fpsTimer.restart();
     
-    // Reset video item to ensure clean state for new source
-    // This creates a fresh QGraphicsVideoItem because reusing one across
-    // different QMediaCaptureSession instances doesn't work properly
-    qDebug() << "  Resetting video item for clean state...";
-    m_videoWidget->resetVideoItem();
+    // DON'T reset video item - reuse the same one like test_qt_only does
+    // Resetting breaks the GStreamer pipeline on Linux USB capture cards
+    // Just clear the display and show connecting status
+    m_videoWidget->clear();
     updateStatusLabel("Connecting...", true);
     
     // Get the NEW video item for pipeline
     QGraphicsVideoItem* videoItem = m_videoWidget->videoItem();
-    qDebug() << "  VideoWidget videoItem:" << videoItem;
+    qDebug() << "  [" << timer.elapsed() << "ms] VideoWidget videoItem:" << videoItem;
     qDebug() << "  VideoItem size:" << (videoItem ? videoItem->size() : QSizeF());
     qDebug() << "  VideoItem nativeSize:" << (videoItem ? videoItem->nativeSize() : QSizeF());
+    qDebug() << "  VideoItem visible:" << (videoItem ? videoItem->isVisible() : false);
+    qDebug() << "  VideoItem videoSink:" << (videoItem ? videoItem->videoSink() : nullptr);
     
     // Start appropriate capture with direct GPU pipeline
     if (slotConfig.type == SourceType::Rtsp) {
@@ -425,27 +455,37 @@ void CameraSlot::startStream() {
         // Wired camera via QCamera + QMediaCaptureSession
         int deviceIndex = slotConfig.source.toInt();
         qDebug() << "  >>> Starting Camera pipeline <<<";
-        qDebug() << "  Device index:" << deviceIndex;
+        qDebug() << "  Device index (filtered):" << deviceIndex;
         
-        // Check if device exists before attempting to connect
-        auto availableDevices = QtCameraCapture::availableDevices();
-        if (deviceIndex < 0 || deviceIndex >= availableDevices.size()) {
-            qDebug() << "  Device index" << deviceIndex << "not available (have" << availableDevices.size() << "devices)";
+        // Use DeviceDetector to get the actual QCameraDevice by filtered index
+        // This handles Linux V4L2 metadata node filtering and sequential numbering
+        qDebug() << "  [" << timer.elapsed() << "ms] Getting camera device from DeviceDetector...";
+        QCameraDevice cameraDevice = m_deviceDetector->cameraDeviceByIndex(deviceIndex);
+        qDebug() << "  [" << timer.elapsed() << "ms] Got camera device";
+        
+        if (cameraDevice.isNull()) {
+            qDebug() << "  Device index" << deviceIndex << "not available";
+            qDebug() << "  Available devices:" << m_deviceDetector->deviceCount();
             qDebug() << "  Showing No Signal instead of Connecting";
             m_streaming = false;  // Not actually streaming
             updateStatusLabel("No Signal", true);
             return;
         }
         
-        m_cameraCapture->setDeviceIndex(deviceIndex);  // Configure device first
-        qDebug() << "  Device configured, now setting video output...";
-        m_cameraCapture->setVideoOutput(videoItem);  // Set AFTER device
-        qDebug() << "  Video output set, now calling start()...";
+        qDebug() << "  Resolved to device:" << cameraDevice.description() << "id:" << cameraDevice.id();
+        
+        // Match test_qt_only approach: setCameraDevice -> setVideoOutput -> start()
+        // Keep it simple and immediate like the working test code
+        qDebug() << "  [" << timer.elapsed() << "ms] Calling setCameraDevice...";
+        m_cameraCapture->setCameraDevice(cameraDevice);
+        qDebug() << "  [" << timer.elapsed() << "ms] Calling setVideoOutput...";
+        m_cameraCapture->setVideoOutput(videoItem);
+        qDebug() << "  [" << timer.elapsed() << "ms] Calling start...";
         m_cameraCapture->start();
-        qDebug() << "  Camera start() called";
+        qDebug() << "  [" << timer.elapsed() << "ms] Camera started";
     }
     
-    qDebug() << "########## CameraSlot" << m_slotIndex << "startStream() DONE ##########";
+    qDebug() << "########## CameraSlot" << m_slotIndex << "startStream() DONE - total:" << timer.elapsed() << "ms ##########";
 }
 
 void CameraSlot::stopStream() {
@@ -498,17 +538,23 @@ void CameraSlot::onConnectionEstablished() {
     m_connected = true;
     updateStatusLabel("", false);  // Hide status on successful connection
     
-    // Start hardware-accelerated recording if enabled (for camera sources)
+    // Delay recording start to let video surface fully initialize
+    // This prevents "Failed to start video surface due to main thread blocked"
     const auto& recordingConfig = Config::instance().recording();
     if (recordingConfig.enabled && m_currentSourceType != SourceType::Rtsp) {
-        // Use hardware-accelerated QtVideoRecorder for camera capture
         if (m_cameraCapture && m_cameraCapture->captureSession()) {
-            qDebug() << "  Starting hardware-accelerated recording...";
-            m_qtRecorder->setSession(m_cameraCapture->captureSession());
-            m_qtRecorder->startRecording(
-                recordingConfig.outputDirectory,
-                recordingConfig.chunkDurationSeconds
-            );
+            // Capture config values by copy for safe use in lambda
+            QString outputDir = recordingConfig.outputDirectory;
+            int chunkDuration = recordingConfig.chunkDurationSeconds;
+            
+            qDebug() << "  Scheduling recording start (200ms delay)...";
+            QTimer::singleShot(200, this, [this, outputDir, chunkDuration]() {
+                if (m_connected && m_cameraCapture && m_cameraCapture->captureSession()) {
+                    qDebug() << "  Starting hardware-accelerated recording for slot" << m_slotIndex;
+                    m_qtRecorder->setSession(m_cameraCapture->captureSession());
+                    m_qtRecorder->startRecording(outputDir, chunkDuration);
+                }
+            });
         }
     }
     
@@ -575,6 +621,15 @@ void CameraSlot::resizeEvent(QResizeEvent* event) {
     // Update debug label position
     if (m_debugMode) {
         updateDebugLabel();
+    }
+}
+
+void CameraSlot::showEvent(QShowEvent* event) {
+    QWidget::showEvent(event);
+    
+    // Show and center the "No Signal" label now that the widget has proper size
+    if (m_statusLabel && !m_streaming) {
+        updateStatusLabel("No Signal", true);
     }
 }
 

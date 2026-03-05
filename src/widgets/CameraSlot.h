@@ -43,6 +43,7 @@ public:
     void startStream();
     void stopStream();
     bool isStreaming() const { return m_streaming; }
+    bool hasSourceSelected() const { return m_currentSourceType != SourceType::None; }
     void refreshDeviceList();
 
 signals:
@@ -54,6 +55,7 @@ protected:
     void paintEvent(QPaintEvent* event) override;
     void mouseDoubleClickEvent(QMouseEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
+    void showEvent(QShowEvent* event) override;
 
 private slots:
     void onSourceSelectorChanged(int index);

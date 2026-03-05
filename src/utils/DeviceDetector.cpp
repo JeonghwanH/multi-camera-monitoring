@@ -1,8 +1,6 @@
 #include "DeviceDetector.h"
 #include <QDebug>
 #include <QMediaDevices>
-#include <QCameraDevice>
-#include <algorithm>
 
 namespace MCM {
 
@@ -21,47 +19,126 @@ DeviceDetector::~DeviceDetector() {
 QList<DeviceInfo> DeviceDetector::detectDevices() {
     QList<DeviceInfo> devices;
     
-    // Use Qt's QMediaDevices (GPU-friendly, no OpenCV)
-    QList<QCameraDevice> availableDevices = QMediaDevices::videoInputs();
+    QList<QCameraDevice> qtDevices = QMediaDevices::videoInputs();
+    int qtTotalCount = qtDevices.size();
     
-    for (int i = 0; i < availableDevices.size(); ++i) {
-        const QCameraDevice& device = availableDevices.at(i);
-        DeviceInfo info;
-        info.index = i;  // Index in QMediaDevices list
-        info.name = device.description();
-        info.available = true;
-        devices.append(info);
+    qDebug() << "DeviceDetector: Qt reports" << qtTotalCount << "total devices";
+    
+    // ========================================
+    // Use all Qt devices directly
+    // ========================================
+    // On Linux with FFmpeg backend (default): Qt reports only capture devices
+    // On macOS/Windows: Qt reports only real cameras
+    int captureCount = qtTotalCount;
+    qDebug() << "DeviceDetector: Using all" << captureCount << "Qt devices";
+    
+    // Log all Qt devices
+    qDebug() << "=== Qt Device List ===";
+    for (int i = 0; i < qtTotalCount; ++i) {
+        const QCameraDevice& dev = qtDevices[i];
+        QString marker = (i < captureCount) ? "CAPTURE" : "metadata";
+        qDebug() << "  Qt[" << i << "]" << dev.description() 
+                 << "id:" << QString::fromUtf8(dev.id()) << "-" << marker;
     }
     
-    // Sort by index
-    std::sort(devices.begin(), devices.end(), [](const DeviceInfo& a, const DeviceInfo& b) {
-        return a.index < b.index;
-    });
+    // Build capture device list (first captureCount devices)
+    QMap<QString, int> nameCount;  // For duplicate numbering
     
+    qDebug() << "=== Capture Devices ===";
+    for (int i = 0; i < qMin(captureCount, qtTotalCount); ++i) {
+        const QCameraDevice& dev = qtDevices[i];
+        
+        DeviceInfo info;
+        info.index = i;
+        info.deviceId = QString::number(i);  // Store Qt array index
+        info.available = true;
+        
+        // Build display name
+        QString baseName = dev.description();
+        // Remove " (V4L2)" suffix for cleaner display
+        if (baseName.endsWith(" (V4L2)")) {
+            baseName = baseName.left(baseName.length() - 7);
+        }
+        
+        // Handle duplicate names
+        nameCount[baseName]++;
+        
+        // Check total count of same name for numbering
+        int totalSameName = 0;
+        for (int j = 0; j < qMin(captureCount, qtTotalCount); ++j) {
+            QString otherName = qtDevices[j].description();
+            if (otherName.endsWith(" (V4L2)")) {
+                otherName = otherName.left(otherName.length() - 7);
+            }
+            if (otherName == baseName) totalSameName++;
+        }
+        
+        if (totalSameName > 1) {
+            info.name = QString("%1 #%2").arg(baseName).arg(nameCount[baseName]);
+        } else {
+            info.name = baseName;
+        }
+        
+        devices.append(info);
+        qDebug() << "  [" << info.index << "]" << info.name << "-> Qt index:" << info.deviceId;
+    }
+    
+    qDebug() << "DeviceDetector: Total" << devices.size() << "capture devices available";
     return devices;
 }
 
-bool DeviceDetector::checkDevice(int index, QString& outName) {
-    QList<QCameraDevice> devices = QMediaDevices::videoInputs();
-    
-    if (index >= 0 && index < devices.size()) {
-        outName = devices.at(index).description();
-        return true;
+QCameraDevice DeviceDetector::cameraDeviceByIndex(int index) const {
+    // deviceId stores Qt array index directly - simple lookup
+    for (const auto& info : m_lastKnownDevices) {
+        if (info.index == index) {
+            QList<QCameraDevice> qtDevices = QMediaDevices::videoInputs();
+            
+            bool ok;
+            int qtIndex = info.deviceId.toInt(&ok);
+            
+            qDebug() << "DeviceDetector::cameraDeviceByIndex(" << index << ")"
+                     << "-> Qt[" << qtIndex << "]";
+            
+            if (ok && qtIndex >= 0 && qtIndex < qtDevices.size()) {
+                const QCameraDevice& device = qtDevices[qtIndex];
+                qDebug() << "  Found:" << device.description();
+                return device;
+            }
+            
+            qWarning() << "  Qt index" << qtIndex << "out of range (have" << qtDevices.size() << ")";
+            break;
+        }
     }
     
+    qWarning() << "DeviceDetector: No device found for filtered index" << index;
+    return QCameraDevice();  // Return null device
+}
+
+bool DeviceDetector::checkDevice(int index, QString& outName) {
+    for (const auto& device : m_lastKnownDevices) {
+        if (device.index == index) {
+            outName = device.name;
+            return device.available;
+        }
+    }
     return false;
 }
 
 void DeviceDetector::startMonitoring(int intervalMs) {
-    // Do initial detection
-    m_lastKnownDevices = detectDevices();
-    emit devicesChanged(m_lastKnownDevices);
+    qDebug() << "DeviceDetector: Starting monitoring with" << intervalMs << "ms interval";
     
-    // Start periodic polling (as backup, QMediaDevices::videoInputsChanged is primary)
-    m_pollTimer->start(intervalMs);
-    
-    qDebug() << "DeviceDetector: Started monitoring with" << intervalMs << "ms interval";
-    qDebug() << "DeviceDetector: Found" << m_lastKnownDevices.size() << "devices";
+    // Delay initial detection to prevent main thread blocking
+    // This allows Qt event loop to start and video surfaces to initialize
+    QTimer::singleShot(100, this, [this, intervalMs]() {
+        m_lastKnownDevices = detectDevices();
+        emit devicesChanged(m_lastKnownDevices);
+        
+        qDebug() << "DeviceDetector: Initial detection complete -" 
+                 << m_lastKnownDevices.size() << "capture devices";
+        
+        // Start periodic polling
+        m_pollTimer->start(intervalMs);
+    });
 }
 
 void DeviceDetector::stopMonitoring() {
@@ -75,7 +152,8 @@ void DeviceDetector::pollDevices() {
     for (const auto& current : currentDevices) {
         bool found = false;
         for (const auto& known : m_lastKnownDevices) {
-            if (known.index == current.index && known.name == current.name) {
+            // Match by device ID, not index (index may shift)
+            if (known.deviceId == current.deviceId) {
                 found = true;
                 break;
             }
@@ -90,7 +168,7 @@ void DeviceDetector::pollDevices() {
     for (const auto& known : m_lastKnownDevices) {
         bool found = false;
         for (const auto& current : currentDevices) {
-            if (known.index == current.index && known.name == current.name) {
+            if (known.deviceId == current.deviceId) {
                 found = true;
                 break;
             }
@@ -127,4 +205,3 @@ QString DeviceDetector::deviceName(int index) const {
 }
 
 } // namespace MCM
-

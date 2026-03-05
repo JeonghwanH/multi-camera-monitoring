@@ -24,11 +24,60 @@ Q_IMPORT_PLUGIN(QDarwinCameraPermissionPlugin)
 #endif
 #include <QDir>
 #include <QDebug>
+#include <QMediaDevices>
+#include <QCameraDevice>
+#include <QLibraryInfo>
+#include <cstdlib>
 
 #include "widgets/MainWindow.h"
 #include "core/Config.h"
 
+void logMediaBackendInfo() {
+    qDebug() << "========================================";
+    qDebug() << "  Qt Multimedia Backend Info";
+    qDebug() << "========================================";
+    
+    // Check environment variable
+    const char* backendEnv = std::getenv("QT_MEDIA_BACKEND");
+    qDebug() << "QT_MEDIA_BACKEND env:" << (backendEnv ? backendEnv : "(not set)");
+    
+    // Qt build info
+    qDebug() << "Qt Version:" << QT_VERSION_STR;
+    qDebug() << "Qt Build:" << QLibraryInfo::build();
+    
+#ifdef Q_OS_LINUX
+    qDebug() << "Platform: Linux";
+    if (!backendEnv) {
+        qDebug() << "  Tip: Try 'export QT_MEDIA_BACKEND=ffmpeg' for better performance";
+    }
+#elif defined(Q_OS_DARWIN)
+    qDebug() << "Platform: macOS (AVFoundation)";
+#elif defined(Q_OS_WIN)
+    qDebug() << "Platform: Windows (WMF)";
+#endif
+    
+    // List available cameras
+    QList<QCameraDevice> cameras = QMediaDevices::videoInputs();
+    qDebug() << "Available cameras:" << cameras.size();
+    for (int i = 0; i < qMin(3, cameras.size()); ++i) {
+        qDebug() << "  [" << i << "]" << cameras[i].description();
+    }
+    if (cameras.size() > 3) {
+        qDebug() << "  ... and" << (cameras.size() - 3) << "more";
+    }
+    
+    qDebug() << "========================================";
+}
+
 int main(int argc, char *argv[]) {
+#ifdef Q_OS_LINUX
+    // Set FFmpeg as default backend on Linux (before QApplication)
+    // FFmpeg has better threading and reports only capture devices
+    if (!std::getenv("QT_MEDIA_BACKEND")) {
+        qputenv("QT_MEDIA_BACKEND", "ffmpeg");
+    }
+#endif
+    
     // Set application attributes before creating QApplication
     QApplication::setApplicationName("Multi-Camera Monitor");
     QApplication::setApplicationVersion("1.0.0");
@@ -39,6 +88,9 @@ int main(int argc, char *argv[]) {
         Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     
     QApplication app(argc, argv);
+    
+    // Log backend info at startup
+    logMediaBackendInfo();
     
     // Set application-wide font
     QFont appFont = app.font();
