@@ -298,22 +298,31 @@ void CameraSlot::onSourceSelectorChanged(int index) {
     slotConfig.source = item.source;
     Config::instance().setSlot(m_slotIndex, slotConfig);
     
+    // Update current source type (for hasSourceSelected() check)
+    m_currentSourceType = item.type;
+    m_currentSource = item.source;
+    
     // Stop current stream if running
     qDebug() << "  Current m_streaming:" << m_streaming;
     if (m_streaming) {
         qDebug() << "  >>> STOPPING current stream <<<";
         stopStream();
-    }
-    
-    // Start new stream if source is valid (not None)
-    if (item.type != SourceType::None) {
-        qDebug() << "  >>> STARTING new stream <<<";
-        startStream();
+        
+        // If new source is valid, restart stream
+        if (item.type != SourceType::None) {
+            qDebug() << "  >>> RESTARTING with new source <<<";
+            startStream();
+        }
     } else {
-        qDebug() << "  Source is None, resetting video item for clean state";
-        // Reset video item when setting to None to ensure clean state
-        // This prevents stale QGraphicsVideoItem references
-        m_videoWidget->resetVideoItem();
+        // Not streaming - just update UI, don't auto-start
+        // User needs to click "Play All" button to start
+        if (item.type == SourceType::None) {
+            qDebug() << "  Source is None, showing No Signal";
+            updateStatusLabel("No Signal", true);
+        } else {
+            qDebug() << "  Source selected (not auto-starting, use Play All button)";
+            updateStatusLabel("Ready", true);
+        }
     }
     
     emit sourceChanged(m_slotIndex, item.type, item.source);
