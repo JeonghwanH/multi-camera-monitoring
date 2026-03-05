@@ -359,8 +359,12 @@ private slots:
         
         log("");
         log(QString("=== Testing FFmpeg %1 Encoder ===").arg(name));
-        log("Device: " + devicePath);
+        log("Camera index: " + QString::number(idx));
+        log("Camera name: " + cameras[idx].description());
+        log("Device ID (raw): " + deviceId);
+        log("Device path (used): " + devicePath);
         log("Encoder: " + encoder);
+        log("Working dir: " + QDir::currentPath());
         
         QString outputFile = QString("encoding_test/ffmpeg_%1_%2.mp4")
             .arg(encoder)
@@ -405,20 +409,27 @@ private slots:
         
         connect(process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
                 this, [this, process, name, outputFile](int exitCode, QProcess::ExitStatus status) {
-            if (exitCode == 0) {
-                QFileInfo info(outputFile);
-                if (info.exists() && info.size() > 1000) {
-                    log(QString("✓ SUCCESS: %1 - File: %2 (%3 KB)")
-                        .arg(name)
-                        .arg(outputFile)
-                        .arg(info.size() / 1024));
+            // Wait a moment for file to be fully written
+            QTimer::singleShot(500, this, [this, process, name, outputFile, exitCode]() {
+                QString fullPath = QDir::currentPath() + "/" + outputFile;
+                QFileInfo info(fullPath);
+                
+                log(QString("FFmpeg exit code: %1").arg(exitCode));
+                log(QString("Checking file: %1").arg(fullPath));
+                log(QString("File exists: %1").arg(info.exists() ? "yes" : "no"));
+                if (info.exists()) {
+                    log(QString("File size: %1 bytes").arg(info.size()));
+                }
+                
+                if (exitCode == 0 && info.exists() && info.size() > 1000) {
+                    log(QString("✓ SUCCESS: %1 - %2 KB").arg(name).arg(info.size() / 1024));
+                } else if (exitCode != 0) {
+                    log(QString("✗ FAILED: %1 - FFmpeg error (exit %2)").arg(name).arg(exitCode));
                 } else {
                     log(QString("✗ FAILED: %1 - Output file empty or missing").arg(name));
                 }
-            } else {
-                log(QString("✗ FAILED: %1 - Exit code: %2").arg(name).arg(exitCode));
-            }
-            process->deleteLater();
+                process->deleteLater();
+            });
         });
         
         process->start("ffmpeg", args);
