@@ -57,10 +57,28 @@ void MonitoringScreen::setupUi() {
     topBar->addWidget(titleLabel);
     topBar->addStretch();
     
-    // Placeholder for symmetry
-    QWidget* placeholder = new QWidget(this);
-    placeholder->setFixedWidth(100);
-    topBar->addWidget(placeholder);
+    // Play button to start unplayed slots with sources
+    m_playButton = new QPushButton("▶ Play All", this);
+    m_playButton->setObjectName("playButton");
+    m_playButton->setFixedSize(100, 36);
+    m_playButton->setCursor(Qt::PointingHandCursor);
+    m_playButton->setStyleSheet(
+        "QPushButton { "
+        "  background-color: #4CAF50; "
+        "  color: white; "
+        "  border: none; "
+        "  border-radius: 4px; "
+        "  font-weight: bold; "
+        "} "
+        "QPushButton:hover { "
+        "  background-color: #45a049; "
+        "} "
+        "QPushButton:pressed { "
+        "  background-color: #3d8b40; "
+        "}"
+    );
+    connect(m_playButton, &QPushButton::clicked, this, &MonitoringScreen::onPlayButtonClicked);
+    topBar->addWidget(m_playButton);
     
     mainLayout->addLayout(topBar);
     
@@ -170,6 +188,46 @@ void MonitoringScreen::onDevicesChanged() {
     // Notify slots about device changes
     for (CameraSlot* slot : m_slots) {
         slot->refreshDeviceList();
+    }
+}
+
+void MonitoringScreen::onPlayButtonClicked() {
+    qDebug() << "MonitoringScreen: Play button clicked";
+    
+    int startedCount = 0;
+    int skippedPlaying = 0;
+    int skippedNoSource = 0;
+    
+    // Start only slots that have a source selected but are not playing
+    for (int i = 0; i < m_slots.size(); ++i) {
+        CameraSlot* slot = m_slots[i];
+        
+        if (slot->isStreaming()) {
+            // Already playing - skip
+            skippedPlaying++;
+            continue;
+        }
+        
+        if (!slot->hasSourceSelected()) {
+            // No source selected - skip
+            skippedNoSource++;
+            continue;
+        }
+        
+        // Has source but not playing - start with stagger
+        QTimer::singleShot(startedCount * 500, slot, [slot]() {
+            slot->startStream();
+        });
+        startedCount++;
+    }
+    
+    qDebug() << "MonitoringScreen: Play All -" 
+             << startedCount << "started," 
+             << skippedPlaying << "already playing,"
+             << skippedNoSource << "no source";
+    
+    if (startedCount > 0) {
+        m_streaming = true;
     }
 }
 

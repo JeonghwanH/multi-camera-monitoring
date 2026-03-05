@@ -43,6 +43,7 @@ public:
     void startStream();
     void stopStream();
     bool isStreaming() const { return m_streaming; }
+    bool hasSourceSelected() const { return m_currentSourceType != SourceType::None; }
     void refreshDeviceList();
 
 signals:
