@@ -256,7 +256,9 @@ void CameraSlot::refreshDeviceList() {
     
     updateSourceSelector();
     
-    // Try to restore selection
+    // Try to restore selection WITHOUT triggering stream start
+    // Block signals to prevent onSourceSelectorChanged from firing
+    m_sourceSelector->blockSignals(true);
     for (int i = 0; i < m_sourceItems.size(); ++i) {
         if (m_sourceItems[i].type == currentItem.type && 
             m_sourceItems[i].source == currentItem.source) {
@@ -264,6 +266,7 @@ void CameraSlot::refreshDeviceList() {
             break;
         }
     }
+    m_sourceSelector->blockSignals(false);
 }
 
 void CameraSlot::onSourceSelectorChanged(int index) {
