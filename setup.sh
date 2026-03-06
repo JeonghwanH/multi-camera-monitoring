@@ -172,6 +172,7 @@ install_qt_aqt() {
     
     # Try each version until one succeeds
     local install_success=false
+    local actual_arch=""
     for ver in "${QT_VERSIONS[@]}"; do
         print_status "Trying Qt $ver..."
         
@@ -182,22 +183,35 @@ install_qt_aqt() {
         fi
         print_status "  Architecture: $arch"
         
-        # Try to install
+        # Try to install base Qt
+        print_status "  Installing base Qt..."
         aqt install-qt linux desktop "$ver" "$arch" -O "$QT_INSTALL_DIR" 2>&1
         
         # Check if installation actually succeeded by looking for qmake
-        # aqtinstall always returns 0, so we need to check the actual result
         for arch_dir in "$QT_INSTALL_DIR/$ver"/*; do
             if [[ -f "$arch_dir/bin/qmake" ]]; then
                 QT_VERSION="$ver"
                 qt_path="$arch_dir"
+                actual_arch=$(basename "$arch_dir")
                 install_success=true
-                print_success "Qt $ver installed successfully at $qt_path"
-                break 2
+                print_success "Qt $ver base installed at $qt_path"
+                break
             fi
         done
         
-        if [[ "$install_success" != "true" ]]; then
+        if [[ "$install_success" == "true" ]]; then
+            # Install Qt Multimedia module (required for this project)
+            print_status "  Installing Qt Multimedia module..."
+            aqt install-qt linux desktop "$ver" "$actual_arch" -m qtmultimedia -O "$QT_INSTALL_DIR" 2>&1
+            
+            # Verify multimedia was installed
+            if [[ -d "$qt_path/lib/cmake/Qt6Multimedia" ]]; then
+                print_success "Qt Multimedia module installed"
+            else
+                print_warning "Qt Multimedia module may not have installed correctly"
+            fi
+            break
+        else
             print_warning "Qt $ver installation failed, trying next version..."
         fi
     done
