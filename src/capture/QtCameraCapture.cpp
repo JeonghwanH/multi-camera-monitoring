@@ -142,7 +142,7 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
     QCoreApplication::processEvents();
     qDebug() << "  [" << timer.elapsed() << "ms] Events processed after setCamera";
     
-    // Configure camera format (prefer 720p @ 30fps for performance)
+    // Configure camera format (prefer 1080p @ 30fps for quality)
     auto formats = device.videoFormats();
     QCameraFormat bestFormat;
     int bestScore = -1;
@@ -152,15 +152,19 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
         float fps = format.maxFrameRate();
         
         int score = 0;
-        if (res.height() == 720) {
-            score += 1000;
-        } else if (res.height() == 1080) {
-            score += 500;
+        // Prefer higher resolution for better recording quality
+        if (res.height() == 1080) {
+            score += 1000;  // 1080p highest priority
+        } else if (res.height() == 720) {
+            score += 800;   // 720p as fallback
         } else if (res.height() >= 480 && res.height() <= 1080) {
             score += 100;
         }
+        // Prefer frame rates around 30fps
         if (fps >= 25 && fps <= 35) {
             score += 100;
+        } else if (fps >= 50 && fps <= 65) {
+            score += 50;    // 60fps acceptable but not preferred (higher bandwidth)
         }
         
         if (score > bestScore) {
