@@ -294,31 +294,36 @@ void CameraSlot::onSourceSelectorChanged(int index) {
     slotConfig.source = item.source;
     Config::instance().setSlot(m_slotIndex, slotConfig);
     
-    // Update current source type (for hasSourceSelected() check)
+    // Check if we were streaming before any changes
+    bool wasStreaming = m_streaming;
+    qDebug() << "  Current m_streaming:" << m_streaming << "wasStreaming:" << wasStreaming;
+    
+    // Stop current stream if running (BEFORE updating m_currentSourceType!)
+    // stopStream() uses m_currentSourceType to know which capture to stop
+    if (m_streaming) {
+        qDebug() << "  >>> STOPPING current stream (was type:" << static_cast<int>(m_currentSourceType) << ") <<<";
+        stopStream();  // Uses OLD m_currentSourceType to stop correct capture
+    }
+    
+    // NOW update current source type (after stopping)
     m_currentSourceType = item.type;
     m_currentSource = item.source;
     
-    // Stop current stream if running
-    qDebug() << "  Current m_streaming:" << m_streaming;
-    if (m_streaming) {
-        qDebug() << "  >>> STOPPING current stream <<<";
-        stopStream();
-        
-        // If new source is valid, restart stream
-        if (item.type != SourceType::None) {
-            qDebug() << "  >>> RESTARTING with new source <<<";
-            startStream();
-        }
+    // Handle new source
+    if (item.type == SourceType::None) {
+        // User selected None - just show No Signal, don't restart
+        qDebug() << "  Source is None, showing No Signal";
+        updateStatusLabel("No Signal", true);
+        m_videoWidget->clear();  // Ensure display is cleared
+    } else if (wasStreaming) {
+        // Was streaming before, restart with new source
+        qDebug() << "  >>> RESTARTING with new source <<<";
+        startStream();
     } else {
         // Not streaming - just update UI, don't auto-start
         // User needs to click "Play All" button to start
-        if (item.type == SourceType::None) {
-            qDebug() << "  Source is None, showing No Signal";
-            updateStatusLabel("No Signal", true);
-        } else {
-            qDebug() << "  Source selected (not auto-starting, use Play All button)";
-            updateStatusLabel("Ready", true);
-        }
+        qDebug() << "  Source selected (not auto-starting, use Play All button)";
+        updateStatusLabel("Ready", true);
     }
     
     emit sourceChanged(m_slotIndex, item.type, item.source);
