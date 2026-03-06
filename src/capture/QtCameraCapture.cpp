@@ -152,11 +152,11 @@ void QtCameraCapture::setupCamera(const QCameraDevice& device) {
         float fps = format.maxFrameRate();
         
         int score = 0;
-        // Prefer higher resolution for better recording quality
-        if (res.height() == 1080) {
-            score += 1000;  // 1080p highest priority
-        } else if (res.height() == 720) {
-            score += 800;   // 720p as fallback
+        // Prefer 720p to reduce buffer pool contention with multiple cameras
+        if (res.height() == 720) {
+            score += 1000;  // 720p highest priority
+        } else if (res.height() == 1080) {
+            score += 800;   // 1080p as fallback
         } else if (res.height() >= 480 && res.height() <= 1080) {
             score += 100;
         }
