@@ -182,14 +182,23 @@ install_qt_aqt() {
         fi
         print_status "  Architecture: $arch"
         
-        if aqt install-qt linux desktop "$ver" "$arch" -O "$QT_INSTALL_DIR" 2>&1; then
-            QT_VERSION="$ver"
-            qt_path="$QT_INSTALL_DIR/$ver/$arch"
-            install_success=true
-            print_success "Qt $ver installed successfully!"
-            break
-        else
-            print_warning "Qt $ver not available, trying next version..."
+        # Try to install
+        aqt install-qt linux desktop "$ver" "$arch" -O "$QT_INSTALL_DIR" 2>&1
+        
+        # Check if installation actually succeeded by looking for qmake
+        # aqtinstall always returns 0, so we need to check the actual result
+        for arch_dir in "$QT_INSTALL_DIR/$ver"/*; do
+            if [[ -f "$arch_dir/bin/qmake" ]]; then
+                QT_VERSION="$ver"
+                qt_path="$arch_dir"
+                install_success=true
+                print_success "Qt $ver installed successfully at $qt_path"
+                break 2
+            fi
+        done
+        
+        if [[ "$install_success" != "true" ]]; then
+            print_warning "Qt $ver installation failed, trying next version..."
         fi
     done
     
