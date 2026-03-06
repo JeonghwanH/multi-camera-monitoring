@@ -126,16 +126,69 @@ install_macos_deps() {
     print_success "Dependencies installed"
 }
 
+# Qt version for aqtinstall (6.7+ required for VA-API encoding support)
+QT_VERSION="6.7.2"
+QT_INSTALL_DIR="$HOME/Qt"
+
+# Install Qt 6.7+ using aqtinstall (for VA-API hardware encoding support)
+# Ubuntu's apt only provides Qt 6.4 which lacks QT_FFMPEG_ENCODING_HW_DEVICE_TYPES
+install_qt_aqt() {
+    print_status "Checking for Qt $QT_VERSION installation..."
+    
+    local qt_path="$QT_INSTALL_DIR/$QT_VERSION/gcc_64"
+    
+    if [[ -d "$qt_path" ]]; then
+        print_success "Qt $QT_VERSION already installed at $qt_path"
+        return 0
+    fi
+    
+    print_status "Installing Qt $QT_VERSION using aqtinstall..."
+    print_status "This is required for VA-API hardware encoding support"
+    
+    # Install pip if not available
+    if ! command -v pip3 &> /dev/null; then
+        print_status "Installing pip3..."
+        sudo apt install -y python3-pip
+    fi
+    
+    # Install aqtinstall
+    print_status "Installing aqtinstall..."
+    pip3 install --user aqtinstall
+    
+    # Add local bin to PATH for this session
+    export PATH="$HOME/.local/bin:$PATH"
+    
+    # Install Qt with multimedia module
+    print_status "Downloading and installing Qt $QT_VERSION (this may take a few minutes)..."
+    aqt install-qt linux desktop "$QT_VERSION" gcc_64 -m qtmultimedia -O "$QT_INSTALL_DIR"
+    
+    if [[ -d "$qt_path" ]]; then
+        print_success "Qt $QT_VERSION installed successfully at $qt_path"
+        
+        # Create environment setup script
+        cat > "$SCRIPT_DIR/qt_env.sh" << EOF
+# Qt $QT_VERSION environment setup
+export Qt6_DIR="$qt_path"
+export CMAKE_PREFIX_PATH="$qt_path:\$CMAKE_PREFIX_PATH"
+export PATH="$qt_path/bin:\$PATH"
+export LD_LIBRARY_PATH="$qt_path/lib:\$LD_LIBRARY_PATH"
+export QT_MEDIA_BACKEND=ffmpeg
+export QT_FFMPEG_ENCODING_HW_DEVICE_TYPES=vaapi
+EOF
+        print_success "Created qt_env.sh for environment setup"
+    else
+        print_error "Qt installation failed"
+        return 1
+    fi
+}
+
 # Install dependencies for Debian/Ubuntu
 install_debian_deps() {
     print_status "Updating package list..."
     sudo apt update
 
-    print_status "Installing dependencies..."
+    print_status "Installing build dependencies..."
     sudo apt install -y \
-        qt6-base-dev \
-        qt6-multimedia-dev \
-        libqt6multimedia6 \
         libavcodec-dev \
         libavformat-dev \
         libavutil-dev \
@@ -143,9 +196,13 @@ install_debian_deps() {
         libopencv-dev \
         cmake \
         build-essential \
-        pkg-config
+        pkg-config \
+        python3-pip \
+        libgl1-mesa-dev \
+        libxkbcommon-dev \
+        libxcb-cursor0
 
-    print_success "Dependencies installed"
+    print_success "Build dependencies installed"
     
     # Install Intel VA-API drivers for hardware video encoding
     print_status "Installing Intel VA-API drivers for hardware encoding..."
@@ -163,6 +220,9 @@ install_debian_deps() {
             print_warning "VA-API detected but encoding may not be supported"
         fi
     fi
+    
+    # Install Qt 6.7+ using aqtinstall (required for VA-API encoding)
+    install_qt_aqt
 }
 
 # Install dependencies for RedHat/Fedora
@@ -221,6 +281,22 @@ build_project() {
             -DCMAKE_PREFIX_PATH="$QT_PREFIX;/opt/homebrew" \
             -DQt6_DIR="$QT6_DIR" \
             -DCMAKE_BUILD_TYPE=Release
+            
+    elif [[ "$OS" == "debian" ]]; then
+        # Use aqtinstall Qt 6.7+ for VA-API encoding support
+        local qt_path="$QT_INSTALL_DIR/$QT_VERSION/gcc_64"
+        
+        if [[ -d "$qt_path" ]]; then
+            print_status "Using Qt $QT_VERSION from $qt_path"
+            print_status "VA-API hardware encoding will be available"
+            
+            cmake .. \
+                -DCMAKE_PREFIX_PATH="$qt_path" \
+                -DCMAKE_BUILD_TYPE=Release
+        else
+            print_warning "Qt $QT_VERSION not found, using system Qt (VA-API encoding may not work)"
+            cmake .. -DCMAKE_BUILD_TYPE=Release
+        fi
     else
         cmake .. -DCMAKE_BUILD_TYPE=Release
     fi
@@ -285,9 +361,22 @@ main() {
     print_success "Setup complete!"
     echo "========================================"
     echo ""
-    echo "To run the application:"
-    echo "  ./run.sh"
-    echo ""
+    
+    if [[ "$OS" == "debian" ]] && [[ -f "$SCRIPT_DIR/qt_env.sh" ]]; then
+        echo "Qt $QT_VERSION installed with VA-API encoding support!"
+        echo ""
+        echo "To run the application:"
+        echo "  source qt_env.sh && ./run.sh"
+        echo ""
+        echo "Or add to your shell profile:"
+        echo "  echo 'source $SCRIPT_DIR/qt_env.sh' >> ~/.bashrc"
+        echo ""
+    else
+        echo "To run the application:"
+        echo "  ./run.sh"
+        echo ""
+    fi
+    
     echo "Or manually:"
     echo "  ./build/multi-camera-monitor"
     echo ""
