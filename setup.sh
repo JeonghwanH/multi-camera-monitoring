@@ -177,9 +177,10 @@ install_qt_aqt() {
         print_status "Trying Qt $ver..."
         
         # Get available architectures for this version
-        local arch=$(aqt list-qt linux desktop --arch "$ver" 2>/dev/null | head -1)
+        # Note: Qt 6.8+ uses 'linux_gcc_64', older versions use 'gcc_64'
+        local arch=$(aqt list-qt linux desktop --arch "$ver" 2>/dev/null | grep -o 'linux_gcc_64\|gcc_64' | head -1)
         if [[ -z "$arch" ]]; then
-            arch="gcc_64"  # fallback
+            arch="linux_gcc_64"  # fallback for Qt 6.8+
         fi
         print_status "  Architecture: $arch"
         
