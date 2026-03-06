@@ -175,9 +175,16 @@ install_qt_aqt() {
     for ver in "${QT_VERSIONS[@]}"; do
         print_status "Trying Qt $ver..."
         
-        if aqt install-qt linux desktop "$ver" gcc_64 -O "$QT_INSTALL_DIR" 2>&1; then
+        # Get available architectures for this version
+        local arch=$(aqt list-qt linux desktop --arch "$ver" 2>/dev/null | head -1)
+        if [[ -z "$arch" ]]; then
+            arch="gcc_64"  # fallback
+        fi
+        print_status "  Architecture: $arch"
+        
+        if aqt install-qt linux desktop "$ver" "$arch" -O "$QT_INSTALL_DIR" 2>&1; then
             QT_VERSION="$ver"
-            qt_path="$QT_INSTALL_DIR/$ver/gcc_64"
+            qt_path="$QT_INSTALL_DIR/$ver/$arch"
             install_success=true
             print_success "Qt $ver installed successfully!"
             break
@@ -311,15 +318,18 @@ build_project() {
             
     elif [[ "$OS" == "debian" ]]; then
         # Use aqtinstall Qt 6.7+ for VA-API encoding support (Ubuntu only)
-        # Search for any installed Qt 6.7+ version
+        # Search for any installed Qt 6.7+ version (any architecture)
         local qt_path=""
         local qt_version=""
         for ver in 6.8.0 6.7.3 6.7.2 6.7.1 6.7.0; do
-            if [[ -d "$HOME/Qt/$ver/gcc_64" ]]; then
-                qt_path="$HOME/Qt/$ver/gcc_64"
-                qt_version="$ver"
-                break
-            fi
+            # Check for any architecture (gcc_64, linux_gcc_64, etc.)
+            for arch_dir in "$HOME/Qt/$ver"/*; do
+                if [[ -d "$arch_dir" ]] && [[ -f "$arch_dir/bin/qmake" ]]; then
+                    qt_path="$arch_dir"
+                    qt_version="$ver"
+                    break 2
+                fi
+            done
         done
         
         if [[ -n "$qt_path" ]]; then
