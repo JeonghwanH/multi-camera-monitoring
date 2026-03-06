@@ -9,7 +9,7 @@
 - **다중 카메라 지원**: 최대 8개 슬롯 동시 모니터링
 - **다양한 소스**: USB 카메라, V4L2 캡처 카드, RTSP 스트림
 - **연속 녹화**: 청크 단위 자동 파일 분할 녹화
-- **하드웨어 인코딩**: GPU 가속 녹화 지원
+- **하드웨어 인코딩**: GPU/CPU HW 가속 녹화 지원
 
 ## 설치 방법
 
@@ -26,23 +26,9 @@ cd multi-camera-monitoring
 - Qt 빌드
 - 환경 설정
 
-### 수동 설치
-
-```bash
-# 의존성 설치 (Ubuntu)
-sudo apt install qt6-base-dev qt6-multimedia-dev cmake build-essential
-
-# 빌드
-mkdir build && cd build
-cmake ..
-make -j$(nproc)
-```
-
 ## 실행 방법
 
 ```bash
-# setup.sh로 설치한 경우
-source qt_env.sh  # Qt 환경 로드
 ./run.sh
 
 # 직접 실행
@@ -80,7 +66,7 @@ source qt_env.sh  # Qt 환경 로드
 
 - 녹화는 설정에서 활성화된 경우 자동으로 시작됩니다
 - 녹화 파일은 `recordings/slot_N/` 폴더에 저장됩니다
-- 설정된 시간(기본 5분)마다 자동으로 새 파일 생성
+- 설정된 시간(기본 1분)마다 자동으로 새 파일 생성
 
 ### 3. 설정 화면
 
@@ -170,11 +156,6 @@ sudo apt install mesa-va-drivers                  # AMD
 vainfo | grep -i h264
 ```
 
-### Windows
-
-- Visual Studio 2019+ 또는 MinGW 필요
-- Media Foundation 백엔드 사용
-
 ## 문제 해결
 
 ### 카메라가 감지되지 않음
@@ -212,13 +193,3 @@ ls -la /dev/video*
 |--------|------|
 | 더블클릭 | 슬롯 확대 보기 |
 | ESC | 확대 보기 닫기 |
-
-## 기술 지원
-
-문제가 지속되면 콘솔 출력을 포함하여 이슈를 등록해 주세요.
-
-```bash
-# 디버그 모드 실행
-./build/multi-camera-monitor 2>&1 | tee debug.log
-```
-
