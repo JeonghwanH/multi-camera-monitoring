@@ -203,33 +203,30 @@ install_qt_aqt() {
         fi
         print_status "  Using architecture: $arch"
         
-        # Try to install base Qt
-        print_status "  Installing base Qt..."
-        aqt install-qt linux desktop "$ver" "$arch" -O "$QT_INSTALL_DIR" 2>&1
+        # Remove any existing incomplete installation for this version
+        if [[ -d "$QT_INSTALL_DIR/$ver" ]]; then
+            print_status "  Removing incomplete Qt $ver installation..."
+            rm -rf "$QT_INSTALL_DIR/$ver"
+        fi
         
-        # Check if installation actually succeeded by looking for qmake
+        # Install Qt with Multimedia module in one command
+        print_status "  Installing Qt $ver with Multimedia module..."
+        aqt install-qt linux desktop "$ver" "$arch" -m qtmultimedia -O "$QT_INSTALL_DIR" 2>&1
+        
+        # Check if installation succeeded (look for qmake AND Qt6Multimedia)
         for arch_dir in "$QT_INSTALL_DIR/$ver"/*; do
-            if [[ -f "$arch_dir/bin/qmake" ]]; then
+            if [[ -f "$arch_dir/bin/qmake" ]] && [[ -d "$arch_dir/lib/cmake/Qt6Multimedia" ]]; then
                 QT_VERSION="$ver"
                 qt_path="$arch_dir"
-                actual_arch=$(basename "$arch_dir")
                 install_success=true
-                print_success "Qt $ver base installed at $qt_path"
+                print_success "Qt $ver with Multimedia installed at $qt_path"
                 break
+            elif [[ -f "$arch_dir/bin/qmake" ]]; then
+                print_warning "Qt $ver installed but Multimedia missing"
             fi
         done
         
         if [[ "$install_success" == "true" ]]; then
-            # Install Qt Multimedia module (required for this project)
-            print_status "  Installing Qt Multimedia module..."
-            aqt install-qt linux desktop "$ver" "$actual_arch" -m qtmultimedia -O "$QT_INSTALL_DIR" 2>&1
-            
-            # Verify multimedia was installed
-            if [[ -d "$qt_path/lib/cmake/Qt6Multimedia" ]]; then
-                print_success "Qt Multimedia module installed"
-            else
-                print_warning "Qt Multimedia module may not have installed correctly"
-            fi
             break
         else
             print_warning "Qt $ver installation failed, trying next version..."
