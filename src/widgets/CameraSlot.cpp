@@ -524,10 +524,21 @@ void CameraSlot::stopStream() {
     // Clear display
     qDebug() << "  Clearing video widget...";
     m_videoWidget->clear();
-    updateStatusLabel("No Signal", true);
     m_connected = false;
     m_currentSourceType = SourceType::None;
     m_currentSource.clear();
+    
+    // Update status based on saved config (not runtime state)
+    // If a source is configured, show "Ready" so user knows it can be started
+    // If no source configured, show "No Signal"
+    const auto& slotConfig = Config::instance().slot(m_slotIndex);
+    if (slotConfig.type != SourceType::None) {
+        qDebug() << "  Source still configured, showing Ready";
+        updateStatusLabel("Ready", true);
+    } else {
+        qDebug() << "  No source configured, showing No Signal";
+        updateStatusLabel("No Signal", true);
+    }
     
     qDebug() << "########## CameraSlot" << m_slotIndex << "stopStream() DONE ##########";
 }
@@ -626,9 +637,15 @@ void CameraSlot::resizeEvent(QResizeEvent* event) {
 void CameraSlot::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
     
-    // Show and center the "No Signal" label now that the widget has proper size
+    // Show and center the status label now that the widget has proper size
     if (m_statusLabel && !m_streaming) {
-        updateStatusLabel("No Signal", true);
+        // Check config to determine correct status
+        const auto& slotConfig = Config::instance().slot(m_slotIndex);
+        if (slotConfig.type != SourceType::None) {
+            updateStatusLabel("Ready", true);
+        } else {
+            updateStatusLabel("No Signal", true);
+        }
     }
 }
 
