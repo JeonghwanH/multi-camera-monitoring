@@ -247,7 +247,7 @@ export CMAKE_PREFIX_PATH="$qt_path:\$CMAKE_PREFIX_PATH"
 export PATH="$qt_path/bin:\$PATH"
 export LD_LIBRARY_PATH="$qt_path/lib:\$LD_LIBRARY_PATH"
 export QT_MEDIA_BACKEND=ffmpeg
-export QT_FFMPEG_ENCODING_HW_DEVICE_TYPES=vaapi
+export QT_FFMPEG_ENCODING_HW_DEVICE_TYPES=cuda
 EOF
         print_success "Created qt_env.sh for environment setup"
     else
