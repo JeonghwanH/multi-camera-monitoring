@@ -137,12 +137,23 @@ install_qt_aqt() {
     local QT_VERSION=""
     local qt_path=""
     
-    # Check if any Qt 6.7+ is already installed
+    # Check if any Qt 6.7+ is already installed WITH Multimedia
     for ver in "${QT_VERSIONS[@]}"; do
-        if [[ -d "$QT_INSTALL_DIR/$ver/gcc_64" ]]; then
-            print_success "Qt $ver already installed at $QT_INSTALL_DIR/$ver/gcc_64"
-            return 0
-        fi
+        # Check both possible architecture names
+        for arch in "linux_gcc_64" "gcc_64"; do
+            local check_path="$QT_INSTALL_DIR/$ver/$arch"
+            if [[ -f "$check_path/bin/qmake" ]]; then
+                # Verify Multimedia is present
+                if [[ -f "$check_path/lib/cmake/Qt6Multimedia/Qt6MultimediaConfig.cmake" ]]; then
+                    print_success "Qt $ver with Multimedia already installed at $check_path"
+                    return 0
+                else
+                    print_warning "Qt $ver found at $check_path but missing Multimedia - reinstalling..."
+                    rm -rf "$QT_INSTALL_DIR/$ver"
+                    break
+                fi
+            fi
+        done
     done
     
     print_status "Installing Qt 6.7+ using aqtinstall..."
@@ -178,11 +189,19 @@ install_qt_aqt() {
         
         # Get available architectures for this version
         # Note: Qt 6.8+ uses 'linux_gcc_64', older versions use 'gcc_64'
-        local arch=$(aqt list-qt linux desktop --arch "$ver" 2>/dev/null | grep -o 'linux_gcc_64\|gcc_64' | head -1)
-        if [[ -z "$arch" ]]; then
+        local arch_output=$(aqt list-qt linux desktop --arch "$ver" 2>/dev/null)
+        print_status "  Available architectures: $arch_output"
+        
+        # Extract architecture (prefer linux_gcc_64 for newer Qt)
+        local arch=""
+        if echo "$arch_output" | grep -q "linux_gcc_64"; then
+            arch="linux_gcc_64"
+        elif echo "$arch_output" | grep -q "gcc_64"; then
+            arch="gcc_64"
+        else
             arch="linux_gcc_64"  # fallback for Qt 6.8+
         fi
-        print_status "  Architecture: $arch"
+        print_status "  Using architecture: $arch"
         
         # Try to install base Qt
         print_status "  Installing base Qt..."
