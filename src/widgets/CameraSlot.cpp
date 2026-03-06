@@ -204,6 +204,13 @@ void CameraSlot::cleanupCapture() {
     }
 }
 
+bool CameraSlot::hasSourceSelected() const {
+    // Check the saved config, not runtime state
+    // This ensures "Play All" works even after stopStream() was called
+    const auto& slotConfig = Config::instance().slot(m_slotIndex);
+    return slotConfig.type != SourceType::None;
+}
+
 void CameraSlot::updateSourceSelector() {
     m_sourceSelector->blockSignals(true);
     m_sourceSelector->clear();
