@@ -327,3 +327,27 @@ if(APPLE)
         MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
     )
 endif()
+
+# Test Qt FFmpeg encoding environment variables
+add_executable(test_qt_encoding_env
+    test_qt_encoding_env.cpp
+)
+
+target_link_libraries(test_qt_encoding_env PRIVATE
+    Qt6::Widgets
+    Qt6::Multimedia
+    Qt6::MultimediaWidgets
+)
+
+if(APPLE)
+    target_link_libraries(test_qt_encoding_env PRIVATE
+        ${QT_DARWIN_CAMERA_PERMISSION_PLUGIN}
+        "-framework AVFoundation"
+    )
+    
+    set_target_properties(test_qt_encoding_env PROPERTIES
+        MACOSX_BUNDLE TRUE
+        MACOSX_BUNDLE_GUI_IDENTIFIER com.test.qtencenv
+        MACOSX_BUNDLE_INFO_PLIST ${CMAKE_SOURCE_DIR}/macos/TestInfo.plist
+    )
+endif()
