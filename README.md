@@ -111,7 +111,7 @@ recordings/
 
 ## Requirements
 
-- Qt 6.5+
+- Qt 6.5+ (Qt 6.7+ recommended for hardware encoding control)
 - CMake 3.16+
 - C++17 compiler
 
@@ -122,11 +122,101 @@ recordings/
 - Camera permission required (see [MACOS_CAMERA_PERMISSION.md](docs/MACOS_CAMERA_PERMISSION.md))
 
 **Linux (Ubuntu):**
-- GStreamer plugins for Qt Multimedia
+- FFmpeg backend for Qt Multimedia (set automatically)
 - v4l2 utilities (optional, for debugging)
+- For hardware encoding: see [Hardware Encoding on Linux](#hardware-encoding-on-linux)
 
 **Windows:**
 - Visual Studio 2019+ or MinGW
+
+## Hardware Encoding on Linux
+
+### Qt Version Requirements
+
+| Qt Version | Hardware Encoding Support |
+|------------|--------------------------|
+| 6.4.x (Ubuntu default) | Limited - `QT_FFMPEG_ENCODING_HW_DEVICE_TYPES` ignored |
+| 6.6+ | Basic hardware encoder selection |
+| 6.7+ | Full control via `QT_FFMPEG_ENCODING_HW_DEVICE_TYPES` |
+
+To use hardware encoding control, install Qt 6.7+ via `aqtinstall`:
+
+```bash
+# setup.sh handles this automatically, or manually:
+pip install aqtinstall
+aqt install-qt linux desktop 6.8.0 linux_gcc_64 -m qtmultimedia -O ~/Qt
+```
+
+### Supported Hardware Encoders
+
+| Encoder | Environment Variable | GPU |
+|---------|---------------------|-----|
+| NVENC | `QT_FFMPEG_ENCODING_HW_DEVICE_TYPES=cuda` | NVIDIA |
+| VA-API | `QT_FFMPEG_ENCODING_HW_DEVICE_TYPES=vaapi` | Intel/AMD |
+| QSV | `QT_FFMPEG_ENCODING_HW_DEVICE_TYPES=qsv` | Intel Quick Sync |
+
+### NVENC (NVIDIA) Setup
+
+NVENC typically works out of the box with NVIDIA drivers:
+
+```bash
+# Verify NVENC support
+ffmpeg -encoders | grep nvenc
+
+# Test
+QT_FFMPEG_ENCODING_HW_DEVICE_TYPES=cuda ./build/test_qt_encoding_env
+```
+
+### VA-API (Intel/AMD) Limitations
+
+VA-API H.264 encoding has a **pixel format limitation**:
+
+- VA-API H.264 only accepts **NV12** input format
+- Many cameras output **YUYV422** format
+- Qt/FFmpeg doesn't automatically convert pixel formats for VA-API
+
+**Symptom:**
+```
+Input surface format is yuyv422.
+No usable encoding profile found.
+```
+
+**Direct FFmpeg workaround** (requires manual format conversion):
+```bash
+# Fails (no conversion)
+ffmpeg -f v4l2 -i /dev/video0 -c:v h264_vaapi -vaapi_device /dev/dri/renderD128 out.mp4
+
+# Works (with format conversion filter)
+ffmpeg -f v4l2 -i /dev/video0 -vaapi_device /dev/dri/renderD128 \
+       -vf 'format=nv12,hwupload' -c:v h264_vaapi out.mp4
+```
+
+**Note:** This limitation doesn't affect NVENC, which handles format conversion automatically.
+
+### VA-API Driver Setup
+
+If you want to use VA-API (and your camera outputs NV12):
+
+```bash
+# Install VA-API drivers
+sudo apt install vainfo intel-media-va-driver-non-free  # Intel
+sudo apt install vainfo mesa-va-drivers                  # AMD
+
+# Verify H.264 encoding support
+vainfo | grep -i "h264.*enc"
+# Should show: VAProfileH264Main : VAEntrypointEncSlice
+```
+
+### Recommended Configuration
+
+For most setups with NVIDIA GPU, use NVENC:
+
+```bash
+export QT_MEDIA_BACKEND=ffmpeg
+export QT_FFMPEG_ENCODING_HW_DEVICE_TYPES=cuda
+```
+
+The `setup.sh` script configures this automatically in `qt_env.sh`.
 
 ## License
 

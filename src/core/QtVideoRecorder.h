@@ -145,6 +145,10 @@ private:
     QString m_currentFilename;
     int m_consecutiveErrors{0};  // Track errors to disable problematic sources
     
+    // Hardware encoding fallback support (Linux)
+    bool m_useHardwareEncoding{true};  // Try hardware first, fallback to software
+    bool m_hardwareEncodingFailed{false};  // Remember if hardware failed (don't retry)
+    
     QTimer* m_chunkTimer{nullptr};
     
     /**

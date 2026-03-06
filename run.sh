@@ -81,13 +81,21 @@ fi
 if [[ "$OSTYPE" == "linux-gnu"* ]]; then
     export LD_LIBRARY_PATH="/usr/local/lib:$LD_LIBRARY_PATH"
     
-    # Use FFmpeg backend by default on Linux (better than GStreamer for multi-camera)
-    # Override with: QT_MEDIA_BACKEND=gstreamer ./run.sh
-    if [[ -z "$QT_MEDIA_BACKEND" ]]; then
-        export QT_MEDIA_BACKEND=ffmpeg
-        print_status "Using FFmpeg backend (set QT_MEDIA_BACKEND=gstreamer to change)"
+    # Source Qt 6.7+ environment if available (for VA-API encoding support)
+    if [[ -f "$SCRIPT_DIR/qt_env.sh" ]]; then
+        print_status "Loading Qt environment (VA-API encoding enabled)..."
+        source "$SCRIPT_DIR/qt_env.sh"
     else
-        print_status "Using $QT_MEDIA_BACKEND backend"
+        # Use FFmpeg backend by default on Linux (better than GStreamer for multi-camera)
+        # Override with: QT_MEDIA_BACKEND=gstreamer ./run.sh
+        if [[ -z "$QT_MEDIA_BACKEND" ]]; then
+            export QT_MEDIA_BACKEND=ffmpeg
+        fi
+    fi
+    
+    print_status "Media backend: ${QT_MEDIA_BACKEND:-system default}"
+    if [[ -n "$QT_FFMPEG_ENCODING_HW_DEVICE_TYPES" ]]; then
+        print_status "Hardware encoding: $QT_FFMPEG_ENCODING_HW_DEVICE_TYPES"
     fi
 fi
 

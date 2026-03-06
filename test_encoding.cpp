@@ -85,6 +85,17 @@ public:
         qtButtonLayout->addWidget(m_testAllBtn);
         layout->addLayout(qtButtonLayout);
         
+        // Qt H.264 Fallback Test
+        auto* fallbackGroup = new QGroupBox("Qt H.264 Automatic Fallback Test");
+        auto* fallbackLayout = new QHBoxLayout(fallbackGroup);
+        m_testH264NormalBtn = new QPushButton("H.264 (Normal)");
+        m_testH264NoVaapiBtn = new QPushButton("H.264 (VA-API Disabled)");
+        m_testFallbackBtn = new QPushButton("Test Auto-Fallback");
+        fallbackLayout->addWidget(m_testH264NormalBtn);
+        fallbackLayout->addWidget(m_testH264NoVaapiBtn);
+        fallbackLayout->addWidget(m_testFallbackBtn);
+        layout->addWidget(fallbackGroup);
+        
         // FFmpeg Direct Encoding Buttons (GPU Hardware)
         auto* ffmpegGroup = new QGroupBox("Direct FFmpeg GPU Encoding (bypasses Qt)");
         auto* ffmpegLayout = new QHBoxLayout(ffmpegGroup);
@@ -111,6 +122,11 @@ public:
         connect(m_startCameraBtn, &QPushButton::clicked, this, &EncodingTestWindow::startCamera);
         connect(m_recordBtn, &QPushButton::clicked, this, &EncodingTestWindow::recordTest);
         connect(m_testAllBtn, &QPushButton::clicked, this, &EncodingTestWindow::testAllCodecs);
+        
+        // Qt H.264 fallback test connections
+        connect(m_testH264NormalBtn, &QPushButton::clicked, this, [this]() { testQtH264Fallback(false); });
+        connect(m_testH264NoVaapiBtn, &QPushButton::clicked, this, [this]() { testQtH264Fallback(true); });
+        connect(m_testFallbackBtn, &QPushButton::clicked, this, &EncodingTestWindow::testAutoFallback);
         
         // FFmpeg direct encoding connections
         connect(m_testNvencBtn, &QPushButton::clicked, this, [this]() { testFFmpegEncoder("h264_nvenc", "NVENC"); });
@@ -440,6 +456,118 @@ private slots:
         }
     }
     
+    void testQtH264Fallback(bool disableVaapi) {
+        if (!m_session || !m_camera || !m_camera->isActive()) {
+            log("ERROR: Start camera first!");
+            return;
+        }
+        
+        log("");
+        log("=== Qt H.264 Fallback Test ===");
+        log(QString("VA-API: %1").arg(disableVaapi ? "DISABLED" : "ENABLED"));
+        
+        // Set or unset VA-API
+        if (disableVaapi) {
+            qputenv("LIBVA_DRIVER_NAME", "dummy");
+            log("Set LIBVA_DRIVER_NAME=dummy");
+        } else {
+            qunsetenv("LIBVA_DRIVER_NAME");
+            log("LIBVA_DRIVER_NAME unset (VA-API available)");
+        }
+        
+        // Stop existing recorder
+        if (m_recorder) {
+            if (m_recorder->recorderState() == QMediaRecorder::RecordingState) {
+                m_recorder->stop();
+            }
+            delete m_recorder;
+            m_recorder = nullptr;
+        }
+        
+        // Create new recorder
+        m_recorder = new QMediaRecorder(this);
+        m_session->setRecorder(m_recorder);
+        
+        // Configure for H.264
+        QMediaFormat format;
+        format.setFileFormat(QMediaFormat::MPEG4);
+        format.setVideoCodec(QMediaFormat::VideoCodec::H264);
+        format.setAudioCodec(QMediaFormat::AudioCodec::Unspecified);
+        
+        m_recorder->setMediaFormat(format);
+        m_recorder->setQuality(QMediaRecorder::NormalQuality);
+        
+        QString filename = QString("encoding_test/qt_h264_%1_%2.mp4")
+            .arg(disableVaapi ? "no_vaapi" : "normal")
+            .arg(QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss"));
+        
+        m_recorder->setOutputLocation(QUrl::fromLocalFile(QDir::currentPath() + "/" + filename));
+        
+        log("Requesting H.264 from Qt...");
+        log("(Watch console for [libx264] or [h264_vaapi] or [h264_nvenc])");
+        
+        connect(m_recorder, &QMediaRecorder::recorderStateChanged, this, [this, disableVaapi](QMediaRecorder::RecorderState state) {
+            if (state == QMediaRecorder::RecordingState) {
+                log(QString("✓ Recording STARTED (VA-API %1)").arg(disableVaapi ? "disabled" : "enabled"));
+            }
+        });
+        
+        connect(m_recorder, &QMediaRecorder::errorOccurred, this, [this, disableVaapi](QMediaRecorder::Error err, const QString& msg) {
+            log(QString("✗ ERROR (VA-API %1): %2").arg(disableVaapi ? "disabled" : "enabled").arg(msg));
+        });
+        
+        m_recorder->record();
+        
+        // Stop after 5 seconds
+        QTimer::singleShot(5000, this, [this, filename, disableVaapi]() {
+            if (m_recorder && m_recorder->recorderState() == QMediaRecorder::RecordingState) {
+                m_recorder->stop();
+                
+                QTimer::singleShot(500, this, [this, filename, disableVaapi]() {
+                    QFileInfo info(filename);
+                    if (info.exists() && info.size() > 1000) {
+                        log(QString("✓ SUCCESS (VA-API %1): %2 KB")
+                            .arg(disableVaapi ? "disabled" : "enabled")
+                            .arg(info.size() / 1024));
+                    } else {
+                        log(QString("✗ FAILED (VA-API %1): File empty or missing")
+                            .arg(disableVaapi ? "disabled" : "enabled"));
+                    }
+                });
+            }
+        });
+    }
+    
+    void testAutoFallback() {
+        log("");
+        log("=== Auto-Fallback Sequence Test ===");
+        log("This tests if Qt/FFmpeg automatically falls back when encoders fail.");
+        log("");
+        log("Test 1: H.264 with VA-API enabled (may fail on Intel)...");
+        
+        testQtH264Fallback(false);  // First test with VA-API
+        
+        // After 8 seconds, test with VA-API disabled
+        QTimer::singleShot(8000, this, [this]() {
+            log("");
+            log("Test 2: H.264 with VA-API disabled (forces NVENC/libx264)...");
+            testQtH264Fallback(true);
+        });
+        
+        // Summary after 16 seconds
+        QTimer::singleShot(16000, this, [this]() {
+            log("");
+            log("=== CONCLUSION ===");
+            log("Check the console output above for encoder used:");
+            log("  [h264_vaapi] = Intel VA-API hardware");
+            log("  [h264_nvenc] = NVIDIA NVENC hardware");
+            log("  [libx264]    = CPU software encoding");
+            log("");
+            log("If both tests succeeded with [libx264], FFmpeg auto-fallback works!");
+            log("No need to manually disable VA-API.");
+        });
+    }
+    
     void log(const QString& msg) {
         m_log->append(msg);
         qDebug() << msg;
@@ -453,6 +581,9 @@ private:
     QPushButton* m_startCameraBtn = nullptr;
     QPushButton* m_recordBtn = nullptr;
     QPushButton* m_testAllBtn = nullptr;
+    QPushButton* m_testH264NormalBtn = nullptr;
+    QPushButton* m_testH264NoVaapiBtn = nullptr;
+    QPushButton* m_testFallbackBtn = nullptr;
     QPushButton* m_testNvencBtn = nullptr;
     QPushButton* m_testVaapiBtn = nullptr;
     QPushButton* m_testQsvBtn = nullptr;

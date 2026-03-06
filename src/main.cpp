@@ -76,6 +76,13 @@ int main(int argc, char *argv[]) {
     if (!std::getenv("QT_MEDIA_BACKEND")) {
         qputenv("QT_MEDIA_BACKEND", "ffmpeg");
     }
+    
+    // Hardware encoding priority (FFmpeg backend default order):
+    // 1. VA-API (Intel/AMD) - most common on Linux
+    // 2. NVENC (NVIDIA) - if available
+    // 3. libx264 (Software fallback)
+    // Note: QT_FFMPEG_ENCODING_HW_DEVICE_TYPES is only supported in Qt 6.7+
+    // On Qt 6.4.x, FFmpeg auto-detects available hardware encoders
 #endif
     
     // Set application attributes before creating QApplication

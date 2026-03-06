@@ -204,6 +204,13 @@ void CameraSlot::cleanupCapture() {
     }
 }
 
+bool CameraSlot::hasSourceSelected() const {
+    // Check the saved config, not runtime state
+    // This ensures "Play All" works even after stopStream() was called
+    const auto& slotConfig = Config::instance().slot(m_slotIndex);
+    return slotConfig.type != SourceType::None;
+}
+
 void CameraSlot::updateSourceSelector() {
     m_sourceSelector->blockSignals(true);
     m_sourceSelector->clear();
@@ -294,31 +301,36 @@ void CameraSlot::onSourceSelectorChanged(int index) {
     slotConfig.source = item.source;
     Config::instance().setSlot(m_slotIndex, slotConfig);
     
-    // Update current source type (for hasSourceSelected() check)
+    // Check if we were streaming before any changes
+    bool wasStreaming = m_streaming;
+    qDebug() << "  Current m_streaming:" << m_streaming << "wasStreaming:" << wasStreaming;
+    
+    // Stop current stream if running (BEFORE updating m_currentSourceType!)
+    // stopStream() uses m_currentSourceType to know which capture to stop
+    if (m_streaming) {
+        qDebug() << "  >>> STOPPING current stream (was type:" << static_cast<int>(m_currentSourceType) << ") <<<";
+        stopStream();  // Uses OLD m_currentSourceType to stop correct capture
+    }
+    
+    // NOW update current source type (after stopping)
     m_currentSourceType = item.type;
     m_currentSource = item.source;
     
-    // Stop current stream if running
-    qDebug() << "  Current m_streaming:" << m_streaming;
-    if (m_streaming) {
-        qDebug() << "  >>> STOPPING current stream <<<";
-        stopStream();
-        
-        // If new source is valid, restart stream
-        if (item.type != SourceType::None) {
-            qDebug() << "  >>> RESTARTING with new source <<<";
-            startStream();
-        }
+    // Handle new source
+    if (item.type == SourceType::None) {
+        // User selected None - just show No Signal, don't restart
+        qDebug() << "  Source is None, showing No Signal";
+        updateStatusLabel("No Signal", true);
+        m_videoWidget->clear();  // Ensure display is cleared
+    } else if (wasStreaming) {
+        // Was streaming before, restart with new source
+        qDebug() << "  >>> RESTARTING with new source <<<";
+        startStream();
     } else {
         // Not streaming - just update UI, don't auto-start
         // User needs to click "Play All" button to start
-        if (item.type == SourceType::None) {
-            qDebug() << "  Source is None, showing No Signal";
-            updateStatusLabel("No Signal", true);
-        } else {
-            qDebug() << "  Source selected (not auto-starting, use Play All button)";
-            updateStatusLabel("Ready", true);
-        }
+        qDebug() << "  Source selected (not auto-starting, use Play All button)";
+        updateStatusLabel("Ready", true);
     }
     
     emit sourceChanged(m_slotIndex, item.type, item.source);
@@ -512,10 +524,21 @@ void CameraSlot::stopStream() {
     // Clear display
     qDebug() << "  Clearing video widget...";
     m_videoWidget->clear();
-    updateStatusLabel("No Signal", true);
     m_connected = false;
     m_currentSourceType = SourceType::None;
     m_currentSource.clear();
+    
+    // Update status based on saved config (not runtime state)
+    // If a source is configured, show "Ready" so user knows it can be started
+    // If no source configured, show "No Signal"
+    const auto& slotConfig = Config::instance().slot(m_slotIndex);
+    if (slotConfig.type != SourceType::None) {
+        qDebug() << "  Source still configured, showing Ready";
+        updateStatusLabel("Ready", true);
+    } else {
+        qDebug() << "  No source configured, showing No Signal";
+        updateStatusLabel("No Signal", true);
+    }
     
     qDebug() << "########## CameraSlot" << m_slotIndex << "stopStream() DONE ##########";
 }
@@ -614,9 +637,15 @@ void CameraSlot::resizeEvent(QResizeEvent* event) {
 void CameraSlot::showEvent(QShowEvent* event) {
     QWidget::showEvent(event);
     
-    // Show and center the "No Signal" label now that the widget has proper size
+    // Show and center the status label now that the widget has proper size
     if (m_statusLabel && !m_streaming) {
-        updateStatusLabel("No Signal", true);
+        // Check config to determine correct status
+        const auto& slotConfig = Config::instance().slot(m_slotIndex);
+        if (slotConfig.type != SourceType::None) {
+            updateStatusLabel("Ready", true);
+        } else {
+            updateStatusLabel("No Signal", true);
+        }
     }
 }
 

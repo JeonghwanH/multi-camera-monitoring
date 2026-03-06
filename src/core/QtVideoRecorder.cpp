@@ -4,6 +4,7 @@
 #include <QStandardPaths>
 #include <QCoreApplication>
 #include <QFileInfo>
+#include <cstdlib>
 
 namespace MCM {
 
@@ -63,10 +64,21 @@ void QtVideoRecorder::configureRecorder(QMediaRecorder* recorder) {
     format.setFileFormat(QMediaFormat::MPEG4);
     
 #ifdef Q_OS_LINUX
-    // On Linux with FFmpeg backend, use MPEG4 (software encoding)
-    // H.264/VAAPI may fail if hardware encoding profile not available
-    format.setVideoCodec(QMediaFormat::VideoCodec::MPEG4);
-    qDebug() << "QtVideoRecorder: Using MP4/MPEG4 software codec (Linux/FFmpeg)";
+    // On Linux with FFmpeg backend:
+    // Hardware encoding priority (auto-detected by FFmpeg):
+    // 1. VA-API (Intel/AMD) - h264_vaapi
+    // 2. NVENC (NVIDIA) - h264_nvenc  
+    // 3. Software fallback - MPEG4
+    // If hardware encoding fails, we fall back to MPEG4 (software)
+    if (m_useHardwareEncoding && !m_hardwareEncodingFailed) {
+        format.setVideoCodec(QMediaFormat::VideoCodec::H264);
+        qDebug() << "QtVideoRecorder slot" << m_slotId 
+                 << ": Using H.264 (VA-API/NVENC hardware)";
+    } else {
+        format.setVideoCodec(QMediaFormat::VideoCodec::MPEG4);
+        qDebug() << "QtVideoRecorder slot" << m_slotId 
+                 << ": Using MPEG4 (software fallback)";
+    }
 #else
     // Use H.264 codec - hardware accelerated on macOS/Windows
     format.setVideoCodec(QMediaFormat::VideoCodec::H264);
@@ -82,8 +94,14 @@ void QtVideoRecorder::configureRecorder(QMediaRecorder* recorder) {
     recorder->setQuality(QMediaRecorder::NormalQuality);
     
 #ifdef Q_OS_LINUX
-    // On Linux, use constant quality which is more compatible
-    recorder->setEncodingMode(QMediaRecorder::ConstantQualityEncoding);
+    // On Linux with hardware encoding (VA-API/NVENC), use average bitrate
+    if (m_useHardwareEncoding && !m_hardwareEncodingFailed) {
+        recorder->setEncodingMode(QMediaRecorder::AverageBitRateEncoding);
+        recorder->setVideoBitRate(4000000);  // 4 Mbps
+    } else {
+        // Software encoding (MPEG4) - constant quality is more compatible
+        recorder->setEncodingMode(QMediaRecorder::ConstantQualityEncoding);
+    }
 #else
     // Use average bit rate encoding on other platforms
     recorder->setEncodingMode(QMediaRecorder::AverageBitRateEncoding);
@@ -303,6 +321,42 @@ void QtVideoRecorder::onRecorderErrorOccurred(QMediaRecorder::Error error, const
     
     qWarning() << "QtVideoRecorder: Error" << errorType << "-" << errorString 
                << "for slot" << m_slotId;
+    
+#ifdef Q_OS_LINUX
+    // Check if this is a hardware encoding failure (VA-API/NVENC)
+    // Common error messages: "No usable encoding", "vaapi", "nvenc", "encoder", "profile"
+    bool isEncoderError = errorString.contains("encoding", Qt::CaseInsensitive) ||
+                          errorString.contains("encoder", Qt::CaseInsensitive) ||
+                          errorString.contains("vaapi", Qt::CaseInsensitive) ||
+                          errorString.contains("nvenc", Qt::CaseInsensitive) ||
+                          errorString.contains("profile", Qt::CaseInsensitive) ||
+                          error == QMediaRecorder::FormatError;
+    
+    if (isEncoderError && m_useHardwareEncoding && !m_hardwareEncodingFailed) {
+        qWarning() << "QtVideoRecorder slot" << m_slotId 
+                   << ": Hardware encoding failed, switching to software (MPEG4)";
+        m_hardwareEncodingFailed = true;
+        m_useHardwareEncoding = false;
+        
+        // Reconfigure both recorders with software encoding
+        configureRecorder(m_recorderA);
+        configureRecorder(m_recorderB);
+        
+        // Reset error count since we're trying a different codec
+        m_consecutiveErrors = 0;
+        
+        // Try to restart recording with software encoding
+        if (m_recording && m_session) {
+            qDebug() << "QtVideoRecorder slot" << m_slotId 
+                     << ": Retrying with software encoding...";
+            // Trigger a chunk rotation to restart with new codec
+            QTimer::singleShot(100, this, &QtVideoRecorder::rotateChunk);
+        }
+        
+        emit errorOccurred("Switched to software encoding (MPEG4)");
+        return;
+    }
+#endif
     
     // Track consecutive errors - if too many, stop trying to record
     m_consecutiveErrors++;
