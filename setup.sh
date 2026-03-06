@@ -126,13 +126,15 @@ install_macos_deps() {
     print_success "Dependencies installed"
 }
 
-# Qt version for aqtinstall (6.7+ required for VA-API encoding support)
-QT_VERSION="6.7.2"
-QT_INSTALL_DIR="$HOME/Qt"
-
 # Install Qt 6.7+ using aqtinstall (for VA-API hardware encoding support)
 # Ubuntu's apt only provides Qt 6.4 which lacks QT_FFMPEG_ENCODING_HW_DEVICE_TYPES
+# NOTE: This function is ONLY for Debian/Ubuntu Linux
 install_qt_aqt() {
+    # Qt version for aqtinstall (6.7+ required for VA-API encoding)
+    local QT_VERSION="6.7.2"
+    local QT_INSTALL_DIR="$HOME/Qt"
+    local VENV_DIR="$HOME/.aqt_venv"
+    
     print_status "Checking for Qt $QT_VERSION installation..."
     
     local qt_path="$QT_INSTALL_DIR/$QT_VERSION/gcc_64"
@@ -145,22 +147,30 @@ install_qt_aqt() {
     print_status "Installing Qt $QT_VERSION using aqtinstall..."
     print_status "This is required for VA-API hardware encoding support"
     
-    # Install pip if not available
-    if ! command -v pip3 &> /dev/null; then
-        print_status "Installing pip3..."
-        sudo apt install -y python3-pip
+    # Install python3-venv if not available
+    if ! python3 -m venv --help &> /dev/null; then
+        print_status "Installing python3-venv..."
+        sudo apt install -y python3-venv
     fi
     
-    # Install aqtinstall
-    print_status "Installing aqtinstall..."
-    pip3 install --user aqtinstall
+    # Create virtual environment for aqtinstall
+    if [[ ! -d "$VENV_DIR" ]]; then
+        print_status "Creating Python virtual environment at $VENV_DIR..."
+        python3 -m venv "$VENV_DIR"
+    fi
     
-    # Add local bin to PATH for this session
-    export PATH="$HOME/.local/bin:$PATH"
+    # Activate venv and install aqtinstall
+    print_status "Installing aqtinstall in virtual environment..."
+    source "$VENV_DIR/bin/activate"
+    pip install --upgrade pip
+    pip install aqtinstall
     
     # Install Qt with multimedia module
     print_status "Downloading and installing Qt $QT_VERSION (this may take a few minutes)..."
     aqt install-qt linux desktop "$QT_VERSION" gcc_64 -m qtmultimedia -O "$QT_INSTALL_DIR"
+    
+    # Deactivate venv
+    deactivate
     
     if [[ -d "$qt_path" ]]; then
         print_success "Qt $QT_VERSION installed successfully at $qt_path"
@@ -283,18 +293,19 @@ build_project() {
             -DCMAKE_BUILD_TYPE=Release
             
     elif [[ "$OS" == "debian" ]]; then
-        # Use aqtinstall Qt 6.7+ for VA-API encoding support
-        local qt_path="$QT_INSTALL_DIR/$QT_VERSION/gcc_64"
+        # Use aqtinstall Qt 6.7+ for VA-API encoding support (Ubuntu only)
+        local qt_version="6.7.2"
+        local qt_path="$HOME/Qt/$qt_version/gcc_64"
         
         if [[ -d "$qt_path" ]]; then
-            print_status "Using Qt $QT_VERSION from $qt_path"
+            print_status "Using Qt $qt_version from $qt_path"
             print_status "VA-API hardware encoding will be available"
             
             cmake .. \
                 -DCMAKE_PREFIX_PATH="$qt_path" \
                 -DCMAKE_BUILD_TYPE=Release
         else
-            print_warning "Qt $QT_VERSION not found, using system Qt (VA-API encoding may not work)"
+            print_warning "Qt $qt_version not found, using system Qt (VA-API encoding may not work)"
             cmake .. -DCMAKE_BUILD_TYPE=Release
         fi
     else
@@ -363,7 +374,7 @@ main() {
     echo ""
     
     if [[ "$OS" == "debian" ]] && [[ -f "$SCRIPT_DIR/qt_env.sh" ]]; then
-        echo "Qt $QT_VERSION installed with VA-API encoding support!"
+        echo "Qt 6.7+ installed with VA-API encoding support!"
         echo ""
         echo "To run the application:"
         echo "  source qt_env.sh && ./run.sh"
