@@ -146,6 +146,23 @@ install_debian_deps() {
         pkg-config
 
     print_success "Dependencies installed"
+    
+    # Install Intel VA-API drivers for hardware video encoding
+    print_status "Installing Intel VA-API drivers for hardware encoding..."
+    sudo apt install -y \
+        intel-media-va-driver-non-free \
+        vainfo \
+        || print_warning "VA-API drivers not available (optional - software encoding will be used)"
+    
+    # Check VA-API support
+    if command -v vainfo &> /dev/null; then
+        print_status "Checking VA-API support..."
+        if vainfo 2>&1 | grep -q "VAEntrypointEncSlice"; then
+            print_success "VA-API hardware encoding is supported"
+        else
+            print_warning "VA-API detected but encoding may not be supported"
+        fi
+    fi
 }
 
 # Install dependencies for RedHat/Fedora

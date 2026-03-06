@@ -65,13 +65,15 @@ void QtVideoRecorder::configureRecorder(QMediaRecorder* recorder) {
     
 #ifdef Q_OS_LINUX
     // On Linux with FFmpeg backend:
-    // Hardware encoding priority is set in main.cpp via QT_FFMPEG_ENCODING_HW_DEVICE_TYPES
-    // 1. Try H.264 (CUDA/NVENC or VAAPI based on Qt config)
-    // 2. Fall back to MPEG4 (software) if hardware encoding fails
+    // Hardware encoding priority (auto-detected by FFmpeg):
+    // 1. VA-API (Intel/AMD) - h264_vaapi
+    // 2. NVENC (NVIDIA) - h264_nvenc  
+    // 3. Software fallback - MPEG4
+    // If hardware encoding fails, we fall back to MPEG4 (software)
     if (m_useHardwareEncoding && !m_hardwareEncodingFailed) {
         format.setVideoCodec(QMediaFormat::VideoCodec::H264);
         qDebug() << "QtVideoRecorder slot" << m_slotId 
-                 << ": Using H.264 (CUDA/NVENC)";
+                 << ": Using H.264 (VA-API/NVENC hardware)";
     } else {
         format.setVideoCodec(QMediaFormat::VideoCodec::MPEG4);
         qDebug() << "QtVideoRecorder slot" << m_slotId 
@@ -92,12 +94,12 @@ void QtVideoRecorder::configureRecorder(QMediaRecorder* recorder) {
     recorder->setQuality(QMediaRecorder::NormalQuality);
     
 #ifdef Q_OS_LINUX
-    // On Linux with hardware encoding, use average bitrate for better NVENC compatibility
+    // On Linux with hardware encoding (VA-API/NVENC), use average bitrate
     if (m_useHardwareEncoding && !m_hardwareEncodingFailed) {
         recorder->setEncodingMode(QMediaRecorder::AverageBitRateEncoding);
         recorder->setVideoBitRate(4000000);  // 4 Mbps
     } else {
-        // Software encoding - constant quality is more compatible
+        // Software encoding (MPEG4) - constant quality is more compatible
         recorder->setEncodingMode(QMediaRecorder::ConstantQualityEncoding);
     }
 #else
@@ -321,8 +323,8 @@ void QtVideoRecorder::onRecorderErrorOccurred(QMediaRecorder::Error error, const
                << "for slot" << m_slotId;
     
 #ifdef Q_OS_LINUX
-    // Check if this is a hardware encoding failure (NVENC/VAAPI)
-    // Common error messages: "No usable encoding", "vaapi", "nvenc", "encoder"
+    // Check if this is a hardware encoding failure (VA-API/NVENC)
+    // Common error messages: "No usable encoding", "vaapi", "nvenc", "encoder", "profile"
     bool isEncoderError = errorString.contains("encoding", Qt::CaseInsensitive) ||
                           errorString.contains("encoder", Qt::CaseInsensitive) ||
                           errorString.contains("vaapi", Qt::CaseInsensitive) ||
